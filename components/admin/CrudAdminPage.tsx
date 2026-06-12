@@ -32,7 +32,7 @@ import type { AdminRecord } from "@/services/admin-crud.service";
 export type CrudField = {
   name: string;
   label: string;
-  type?: "text" | "email" | "number" | "password" | "textarea" | "select" | "json";
+  type?: "text" | "email" | "number" | "password" | "textarea" | "select" | "json"  | "datetime-local" ;
   placeholder?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;

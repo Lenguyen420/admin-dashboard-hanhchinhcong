@@ -21,6 +21,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import {
+  FolderOpen,
+  FileText,
+  Newspaper,
+} from "lucide-react";
+
 
 const navItems = [
   { label: "Home", icon: Home, href: "/" },
@@ -29,7 +35,22 @@ const navItems = [
   { label: "Feedbacks", icon: MessageSquareText, href: "/admin/feedbacks" },
   { label: "Users", icon: Users, href: "/admin/users" },
   { label: "Interface", icon: Box, href: "#", menu: true },
-  { label: "Forms", icon: ShieldCheck, href: "#", menu: true },
+  {
+  label: "Forms",
+  icon: FolderOpen,
+  menu: [
+    {
+      label: "Documents",
+      icon: FileText,
+      href: "/admin/forms",
+    },
+    {
+      label: "Articles",
+      icon: Newspaper,
+      href: "/admin/articles",
+    },
+  ],
+},
   { label: "Extra", icon: Star, href: "#", menu: true },
   { label: "Layout", icon: Grid2X2, href: "#", menu: true },
   { label: "Plugins", icon: Package, href: "#", menu: true },
@@ -132,36 +153,106 @@ function Header() {
 
 function NavBar({ activeHref }: { activeHref: string }) {
   return (
-    <nav className="border-b border-[#dfe3e8] bg-white">
-      <div className="mx-auto flex max-w-[1288px] items-center justify-between gap-6 overflow-x-auto px-4">
-        <div className="flex min-w-max items-center gap-1">
-          {navItems.map(({ label, icon: Icon, href, menu }) => {
-            const active = href === activeHref;
+    <nav className="relative border-b border-[#dfe3e8] bg-white overflow-visible">
+<div className="mx-auto flex max-w-[1288px] items-center justify-between gap-6 px-4 overflow-visible">        <div className="flex min-w-max items-center gap-1">
+          {navItems.map(
+            ({ label, icon: Icon, href, menu }) => {
+             const active =
+  href === activeHref ||
+  (Array.isArray(menu) &&
+    menu.some(
+      (item) => item.href === activeHref
+    ));
 
-            return (
-              <Link
-                className={`group relative flex h-14 items-center gap-2 px-3 text-sm ${
-                  active ? "text-[#182433]" : "text-[#526071]"
-                } hover:text-[#0d6efd]`}
-                href={href}
-                key={label}
-              >
-                <Icon className="h-[18px] w-[18px]" strokeWidth={1.7} />
-                <span>{label}</span>
-                {menu ? <ChevronDown className="h-3.5 w-3.5" /> : null}
-                {active ? (
-                  <span className="absolute inset-x-2 bottom-0 h-0.5 bg-[#0d6efd]" />
-                ) : null}
-              </Link>
-            );
-          })}
+              // MENU CÓ SUBMENU
+             if (Array.isArray(menu) && menu.length) {
+                return (
+                  <div
+                    key={label}
+                    className={`group relative flex h-14 cursor-pointer items-center gap-2 px-3 text-sm transition-colors ${
+                      active
+                        ? "text-[#182433]"
+                        : "text-[#526071]"
+                    } hover:text-[#0d6efd]`}
+                  >
+                    <Icon
+                      className="h-[18px] w-[18px]"
+                      strokeWidth={1.7}
+                    />
+
+                    <span>{label}</span>
+
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-hover:rotate-180" />
+
+                    {active && (
+                      <span className="absolute inset-x-2 bottom-0 h-0.5 bg-[#0d6efd]" />
+                    )}
+
+                    {/* Dropdown */}
+                    <div className="absolute left-0 top-full z-50 hidden pt-1 group-hover:block">
+                      <div className="min-w-[220px] overflow-hidden rounded-lg border border-[#dfe3e8] bg-white shadow-lg">
+                        {menu.map((item) => {
+                          const childActive =
+                            item.href === activeHref;
+
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              className={`block px-4 py-2.5 text-sm transition-colors ${
+                                childActive
+                                  ? "bg-[#f5f9ff] font-medium text-[#0d6efd]"
+                                  : "text-[#526071] hover:bg-[#f5f7fa] hover:text-[#0d6efd]"
+                              }`}
+                            >
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // MENU THƯỜNG
+              return (
+                <Link
+                  key={label}
+                  href={href!}
+                  className={`group relative flex h-14 items-center gap-2 px-3 text-sm transition-colors ${
+                    active
+                      ? "text-[#182433]"
+                      : "text-[#526071]"
+                  } hover:text-[#0d6efd]`}
+                >
+                  <Icon
+                    className="h-[18px] w-[18px]"
+                    strokeWidth={1.7}
+                  />
+
+                  <span>{label}</span>
+
+                  {active && (
+                    <span className="absolute inset-x-2 bottom-0 h-0.5 bg-[#0d6efd]" />
+                  )}
+                </Link>
+              );
+            }
+          )}
         </div>
+
         <a
           className="relative hidden h-14 min-w-max items-center gap-2 px-3 text-sm text-[#526071] hover:text-[#0d6efd] lg:flex"
           href="#"
         >
-          <Settings className="h-[18px] w-[18px]" strokeWidth={1.7} />
+          <Settings
+            className="h-[18px] w-[18px]"
+            strokeWidth={1.7}
+          />
+
           Theme Settings
+
           <span className="absolute right-0 top-1 rounded-full bg-[#d63939] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
             New
           </span>
