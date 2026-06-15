@@ -28,6 +28,10 @@ import {
   updateResource,
 } from "@/services/feedback";
 import type { AdminRecord } from "@/services/feedback";
+import buildPayload from "./buildPayload";
+import RecordModal from "./RecordModal";
+import formatValue from "./formatValue";
+import RecordDetailModal from "./RecordDetailModal";
 
 export type CrudField = {
   name: string;
@@ -67,8 +71,6 @@ export type CrudAdminConfig = {
 
   editFields?: CrudField[];
 
-  mockData?: AdminRecord[];
-
   showCreateForm?: boolean;
 };
 
@@ -87,184 +89,6 @@ function readValue(record: AdminRecord, key: string) {
   }, record);
 }
 
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") {
-    return "-";
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "Có" : "Không";
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(formatValue).join(", ");
-  }
-
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-
-  return String(value);
-}
-
-function parseFieldValue(
-  field: CrudField,
-  rawValue: FormDataEntryValue | null,
-) {
-  const value = String(rawValue ?? "").trim();
-
-  if (field.type === "checkbox") {
-    return rawValue !== null;
-  }
-
-  if (!value && !field.required) {
-    return undefined;
-  }
-
-  if (field.type === "number") {
-    return Number(value);
-  }
-
-  if (field.type === "json") {
-    return value ? JSON.parse(value) : undefined;
-  }
-
-  return value;
-}
-
-function buildPayload(fields: CrudField[], formData: FormData) {
-  return fields.reduce<AdminRecord>((payload, field) => {
-    const value = parseFieldValue(field, formData.get(field.name));
-
-    if (value !== undefined) {
-      payload[field.name] = value;
-    }
-
-    return payload;
-  }, {});
-}
-
-function formatDateTimeLocalValue(value: unknown): string {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(String(value));
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
-
-function getFieldDefaultValue(field: CrudField, record?: AdminRecord) {
-  const value = record?.[field.name];
-
-  if (field.type === "datetime-local") {
-    return formatDateTimeLocalValue(value);
-  }
-
-  if (field.type === "json") {
-    return value === undefined || value === null
-      ? ""
-      : JSON.stringify(value, null, 2);
-  }
-
-  return value === undefined || value === null ? "" : String(value);
-}
-
-function FieldControl({
-  field,
-  record,
-}: {
-  field: CrudField;
-  record?: AdminRecord;
-}) {
-  const defaultValue = getFieldDefaultValue(field, record);
-
-  return (
-    <label className="block" key={field.name}>
-      <span className="mb-1.5 block text-sm font-semibold text-[#3f454d]">
-        {field.label}
-      </span>
-      {field.type === "checkbox" ? (
-        <div className="flex items-start gap-3 rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 py-2.5">
-          <input
-            className="mt-0.5 h-4 w-4 rounded border-[#b8c2d0] text-[#0d6efd] focus:ring-[#c7defd]"
-            defaultChecked={Boolean(record?.[field.name])}
-            name={field.name}
-            type="checkbox"
-          />
-          <span className="text-sm leading-5 text-[#526071]">
-            Bat truong nay
-          </span>
-        </div>
-      ) : field.type === "textarea" || field.type === "json" ? (
-        <textarea
-          className="min-h-[110px] w-full resize-y rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 py-2 text-sm leading-6 outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
-          defaultValue={defaultValue}
-          name={field.name}
-          placeholder={field.placeholder}
-          required={field.required}
-        />
-      ) : field.type === "select" ? (
-        <select
-          className="h-10 w-full rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 text-sm outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
-          defaultValue={defaultValue || field.options?.[0]?.value}
-          name={field.name}
-          required={field.required}
-        >
-          {field.options?.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          className="h-10 w-full rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 text-sm outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
-          defaultValue={defaultValue}
-          name={field.name}
-          placeholder={field.placeholder}
-          required={field.required}
-          type={field.type ?? "text"}
-        />
-      )}
-      {field.helper ? (
-        <span className="mt-1.5 block text-xs leading-5 text-[#667085]">
-          {field.helper}
-        </span>
-      ) : null}
-    </label>
-  );
-}
-
-function stripReadonlyFields(record: AdminRecord) {
-  const next: AdminRecord = {};
-
-  for (const [key, value] of Object.entries(record)) {
-    if (
-      [
-        "id",
-        "_id",
-        "createdAt",
-        "updatedAt",
-        "creationTime",
-        "responseTime",
-      ].includes(key)
-    ) {
-      continue;
-    }
-
-    next[key] = value;
-  }
-
-  return next;
-}
-
 function ResourceIcon({ resource }: { resource: string }) {
   const Icon =
     resource === "users"
@@ -276,113 +100,6 @@ function ResourceIcon({ resource }: { resource: string }) {
   return <Icon className="h-5 w-5" />;
 }
 
-function RecordModal({
-  fields,
-  isSaving,
-  onClose,
-  onSave,
-  record,
-}: {
-  fields?: CrudField[];
-  isSaving: boolean;
-  onClose: () => void;
-  onSave: (payload: AdminRecord) => Promise<void>;
-  record: AdminRecord;
-}) {
-  const [json, setJson] = useState(() =>
-    JSON.stringify(stripReadonlyFields(record), null, 2),
-  );
-  const [error, setError] = useState("");
-
-  async function submitEdit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-
-    try {
-      const payload = fields
-        ? buildPayload(fields, new FormData(event.currentTarget))
-        : (JSON.parse(json) as AdminRecord);
-
-      await onSave(payload);
-    } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Không thể cập nhật bản ghi.",
-      );
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-4 sm:items-center">
-      <section className="w-full max-w-2xl overflow-hidden rounded-md border border-[#dfe3e8] bg-white shadow-2xl">
-        <header className="flex items-center justify-between gap-3 border-b border-[#dfe3e8] px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase text-[#0d6efd]">
-              PATCH
-            </p>
-            <h2 className="text-base font-semibold text-[#182433]">
-              Cập nhật bản ghi
-            </h2>
-          </div>
-          <button
-            aria-label="Đóng"
-            className="flex h-9 w-9 items-center justify-center rounded-md text-[#667085] hover:bg-[#f1f5f9]"
-            onClick={onClose}
-            title="Đóng"
-            type="button"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </header>
-
-        <form onSubmit={submitEdit}>
-          <div className="space-y-3 p-5">
-            {error ? (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </div>
-            ) : null}
-            {fields ? (
-              fields.map((field) => (
-                <FieldControl field={field} key={field.name} record={record} />
-              ))
-            ) : (
-              <textarea
-                className="min-h-[360px] w-full resize-y rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 py-3 font-mono text-sm leading-6 text-[#182433] outline-none focus:border-[#0d6efd] focus:ring-2 focus:ring-[#c7defd]"
-                onChange={(event) => setJson(event.target.value)}
-                value={json}
-              />
-            )}
-          </div>
-
-          <footer className="flex items-center justify-end gap-2 border-t border-[#dfe3e8] bg-[#f8fafc] px-5 py-4">
-            <button
-              className="h-10 rounded-md border border-[#dfe3e8] bg-white px-4 text-sm font-medium text-[#182433] hover:bg-[#f1f5f9]"
-              onClick={onClose}
-              type="button"
-            >
-              Hủy
-            </button>
-            <button
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-[#0d6efd] px-4 text-sm font-semibold text-white hover:bg-[#0b5ed7] disabled:cursor-not-allowed disabled:opacity-70"
-              disabled={isSaving}
-              type="submit"
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Pencil className="h-4 w-4" />
-              )}
-              Lưu
-            </button>
-          </footer>
-        </form>
-      </section>
-    </div>
-  );
-}
-
 export function ResourceCrudPanel({
   config,
   showHeader = true,
@@ -390,11 +107,12 @@ export function ResourceCrudPanel({
   config: CrudAdminConfig;
   showHeader?: boolean;
 }) {
-  const [items, setItems] = useState<AdminRecord[]>(config.mockData ?? []);
+  const [items, setItems] = useState<AdminRecord[]>([]);
   const [query, setQuery] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<AdminRecord | null>(
     null,
   );
+  const [detailRecord, setDetailRecord] = useState<AdminRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState<Notice>({
@@ -402,50 +120,39 @@ export function ResourceCrudPanel({
     message: "Đang tải dữ liệu từ backend...",
   });
 
-  const resolveItems = useCallback((data: AdminRecord[]) => {
-    if (data.length > 0 || !config.mockData?.length) {
-      return data;
-    }
-
-    return config.mockData;
-  }, [config.mockData]);
-
-  const getLoadSuccessMessage = useCallback((data: AdminRecord[]) => {
-    if (data.length > 0 || !config.mockData?.length) {
+  const getLoadSuccessMessage = useCallback(
+    (data: AdminRecord[]) => {
       return `Đã tải ${data.length} bản ghi từ /${config.resource}.`;
-    }
+    },
+    [config.resource],
+  );
 
-    return `Endpoint /${config.resource} chưa có dữ liệu, đang hiển thị ${config.mockData.length} bản ghi mẫu.`;
-  }, [config.mockData, config.resource]);
-
-  const getLoadFallbackMessage = useCallback((error: unknown) => {
-    if (config.mockData?.length) {
-      return `Không kết nối được /${config.resource}, đang hiển thị ${config.mockData.length} bản ghi mẫu.`;
-    }
-
-    return error instanceof Error
-      ? error.message
-      : `Không tải được dữ liệu /${config.resource}.`;
-  }, [config.mockData, config.resource]);
-
+  const getLoadErrorMessage = useCallback(
+    (error: unknown) => {
+      return error instanceof Error
+        ? error.message
+        : `Không tải được dữ liệu /${config.resource}.`;
+    },
+    [config.resource],
+  );
   async function loadItems() {
     setIsLoading(true);
 
     try {
       const data = await listResource(config.resource);
-      setItems(resolveItems(data));
+      console.log("list record", data);
+      setItems(data);
+
       setNotice({
         kind: "success",
         message: getLoadSuccessMessage(data),
       });
     } catch (error) {
-      if (config.mockData?.length) {
-        setItems(config.mockData);
-      }
+      setItems([]);
 
       setNotice({
-        kind: config.mockData?.length ? "info" : "error",
-        message: getLoadFallbackMessage(error),
+        kind: "error",
+        message: getLoadErrorMessage(error),
       });
     } finally {
       setIsLoading(false);
@@ -458,12 +165,14 @@ export function ResourceCrudPanel({
     async function loadInitialItems() {
       try {
         const data = await listResource(config.resource);
+        console.log("list record", data);
 
         if (!isMounted) {
           return;
         }
 
-        setItems(resolveItems(data));
+        setItems(data);
+
         setNotice({
           kind: "success",
           message: getLoadSuccessMessage(data),
@@ -473,13 +182,11 @@ export function ResourceCrudPanel({
           return;
         }
 
-        if (config.mockData?.length) {
-          setItems(config.mockData);
-        }
+        setItems([]);
 
         setNotice({
-          kind: config.mockData?.length ? "info" : "error",
-          message: getLoadFallbackMessage(error),
+          kind: "error",
+          message: getLoadErrorMessage(error),
         });
       } finally {
         if (isMounted) {
@@ -493,8 +200,7 @@ export function ResourceCrudPanel({
     return () => {
       isMounted = false;
     };
-  }, [config.mockData, config.resource, getLoadFallbackMessage, getLoadSuccessMessage, resolveItems]);
-
+  }, [config.resource, getLoadErrorMessage, getLoadSuccessMessage]);
   const filteredItems = useMemo(() => {
     const keyword = query.trim().toLowerCase();
 
@@ -538,15 +244,15 @@ export function ResourceCrudPanel({
     const id = getRecordId(record);
 
     if (id === undefined) {
-      setSelectedRecord(record);
+      setDetailRecord(record);
       return;
     }
 
     try {
       const detail = await getResourceById(config.resource, id);
-      setSelectedRecord(detail);
+      setDetailRecord(detail);
     } catch {
-      setSelectedRecord(record);
+      setDetailRecord(record);
     }
   }
 
@@ -722,10 +428,10 @@ export function ResourceCrudPanel({
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            aria-label="Xem JSON"
+                            aria-label="Xem chi tiết"
                             className="flex h-9 w-9 items-center justify-center rounded-md border border-[#dfe3e8] bg-white text-[#526071] hover:bg-[#eef6ff] hover:text-[#0d6efd]"
                             onClick={() => openDetail(item)}
-                            title="Xem JSON"
+                            title="Xem chi tiết"
                             type="button"
                           >
                             <Eye className="h-4 w-4" />
@@ -787,6 +493,12 @@ export function ResourceCrudPanel({
           onClose={() => setSelectedRecord(null)}
           onSave={saveSelectedRecord}
           record={selectedRecord}
+        />
+      ) : null}
+      {detailRecord ? (
+        <RecordDetailModal
+          onClose={() => setDetailRecord(null)}
+          record={detailRecord}
         />
       ) : null}
     </section>

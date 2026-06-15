@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import CrudAdminPage from "@/components/admin/feedback";
+import CrudAdminPage from "@/components/feedbacks/Feedback";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {

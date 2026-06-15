@@ -23,7 +23,7 @@ export type PaginatedApiResponse<T> = {
 };
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
 
 const ADMIN_KEY =
   process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";

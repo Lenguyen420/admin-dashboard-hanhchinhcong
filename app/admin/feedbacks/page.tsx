@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import {
   ResourceCrudPanel,
   type CrudAdminConfig,
-} from "@/components/admin/feedback";
+} from "@/components/feedbacks/Feedback";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
@@ -92,7 +92,7 @@ const feedbackConfig: CrudAdminConfig = {
   columns: [
     { key: "id", label: "ID" },
     { key: "title", label: "Tiêu đề" },
-    { key: "feedbackType.title", label: "Loại phản ánh" },
+    { key: "type", label: "Loại phản ánh" },
     { key: "receivingUnitName", label: "Đơn vị tiếp nhận" },
     { key: "senderFullName", label: "Người gửi" },
     { key: "senderPhone", label: "Số điện thoại" },
