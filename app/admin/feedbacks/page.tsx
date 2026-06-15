@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import {
   ResourceCrudPanel,
   type CrudAdminConfig,
-} from "@/components/admin/CrudAdminPage";
+} from "@/components/admin/feedback";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
@@ -13,17 +13,29 @@ export const metadata: Metadata = {
 
 const feedbackTypeConfig: CrudAdminConfig = {
   activeHref: "/admin/feedbacks",
+
+  title: "Loại phản ánh",
+
+  eyebrow: "Danh mục phản ánh",
+
+  description:
+    "Quản lý danh mục loại phản ánh để người dân lựa chọn khi gửi phản ánh, kiến nghị.",
+
+  resource: "feedback-types",
+
+  createTitle: "Thêm loại phản ánh",
+
+  listTitle: "Danh sách loại phản ánh",
+
+  emptyText: "Chưa có loại phản ánh nào.",
+
   columns: [
     { key: "id", label: "ID" },
     { key: "title", label: "Tên loại" },
     { key: "order", label: "Thứ tự" },
     { key: "createdAt", label: "Ngày tạo" },
   ],
-  createTitle: "Thêm loại phản ánh",
-  description:
-    "Quản lý danh mục loại phản ánh để người dân lựa chọn khi gửi phản ánh, kiến nghị.",
-  emptyText: "Chưa có loại phản ánh nào.",
-  eyebrow: "Danh mục phản ánh",
+
   fields: [
     {
       label: "Tên loại phản ánh",
@@ -39,33 +51,44 @@ const feedbackTypeConfig: CrudAdminConfig = {
       type: "number",
     },
   ],
-  listTitle: "Danh sách loại phản ánh",
-  mockData: [
+
+  editFields: [
     {
-      id: 1,
-      title: "Hạ tầng đô thị",
-      order: 1,
-      createdAt: "2026-06-12T01:00:00.000Z",
+      label: "Tên loại phản ánh",
+      name: "title",
+      placeholder: "Ví dụ: Hạ tầng đô thị",
+      required: true,
     },
     {
-      id: 2,
-      title: "Vệ sinh môi trường",
-      order: 2,
-      createdAt: "2026-06-11T02:30:00.000Z",
-    },
-    {
-      id: 3,
-      title: "Thái độ phục vụ",
-      order: 3,
-      createdAt: "2026-06-10T03:45:00.000Z",
+      label: "Thứ tự hiển thị",
+      name: "order",
+      placeholder: "1",
+      required: true,
+      type: "number",
     },
   ],
-  resource: "feedback-types",
-  title: "Loại phản ánh",
 };
 
 const feedbackConfig: CrudAdminConfig = {
   activeHref: "/admin/feedbacks",
+
+  title: "Phản ánh",
+
+  eyebrow: "Phản ánh, kiến nghị",
+
+  description:
+    "Theo dõi phản ánh của người dân, cập nhật trạng thái và nội dung xử lý.",
+
+  resource: "feedbacks",
+
+  createTitle: "Tạo phản ánh",
+
+  listTitle: "Danh sách phản ánh",
+
+  emptyText: "Chưa có phản ánh nào.",
+
+  showCreateForm: false,
+
   columns: [
     { key: "id", label: "ID" },
     { key: "title", label: "Tiêu đề" },
@@ -78,12 +101,9 @@ const feedbackConfig: CrudAdminConfig = {
     { key: "isPublic", label: "Công khai" },
     { key: "creationTime", label: "Ngày gửi" },
   ],
-  createTitle: "Tạo phản ánh",
-  description:
-    "Theo dõi phản ánh của người dân, cập nhật trạng thái và nội dung xử lý.",
-  emptyText: "Chưa có phản ánh nào.",
-  eyebrow: "Phản ánh, kiến nghị",
+
   fields: [],
+
   editFields: [
     {
       label: "Trạng thái xử lý",
@@ -119,60 +139,6 @@ const feedbackConfig: CrudAdminConfig = {
       type: "checkbox",
     },
   ],
-  listTitle: "Danh sách phản ánh",
-  mockData: [
-    {
-      id: 1,
-      title: "Đèn chiếu sáng trên đường Nguyễn Huệ bị hỏng",
-      content:
-        "Khu vực trước số nhà 24 đường Nguyễn Huệ mất đèn ba ngày, gây khó khăn cho người dân đi lại buổi tối.",
-      feedbackType: { id: 1, title: "Hạ tầng đô thị" },
-      receivingUnitName: "Phòng Quản lý đô thị",
-      senderFullName: "Phạm Văn An",
-      senderPhone: "0901234567",
-      status: "PROCESSING",
-      isAnonymous: false,
-      isPublic: true,
-      isResultPublic: false,
-      creationTime: "2026-06-12T02:15:00.000Z",
-    },
-    {
-      id: 2,
-      title: "Rác thải tồn đọng tại khu vực chợ trung tâm",
-      content:
-        "Rác sinh hoạt tập kết quá giờ thu gom, phát sinh mùi hôi và ảnh hưởng đến hộ kinh doanh xung quanh.",
-      feedbackType: { id: 2, title: "Vệ sinh môi trường" },
-      receivingUnitName: "Công ty Môi trường đô thị",
-      senderFullName: "Trần Thị Hoa",
-      senderPhone: "0912345678",
-      status: "RECEIVED",
-      isAnonymous: false,
-      isPublic: true,
-      isResultPublic: false,
-      creationTime: "2026-06-11T04:40:00.000Z",
-    },
-    {
-      id: 3,
-      title: "Đề nghị cải thiện thái độ hướng dẫn hồ sơ",
-      content:
-        "Khi đến nộp hồ sơ xác nhận tình trạng hôn nhân, công dân chưa được hướng dẫn rõ ràng về thành phần hồ sơ cần bổ sung.",
-      feedbackType: { id: 3, title: "Thái độ phục vụ" },
-      receivingUnitName: "Bộ phận Một cửa",
-      senderFullName: "Nguyễn Minh Châu",
-      senderPhone: "0987654321",
-      status: "RESOLVED",
-      response:
-        "Đơn vị đã rà soát quy trình hướng dẫn và nhắc nhở cán bộ phụ trách.",
-      isAnonymous: false,
-      isPublic: true,
-      isResultPublic: true,
-      creationTime: "2026-06-10T08:05:00.000Z",
-      responseTime: "2026-06-11T09:20:00.000Z",
-    },
-  ],
-  resource: "feedbacks",
-  showCreateForm: false,
-  title: "Phản ánh",
 };
 
 export default function Page() {
@@ -195,6 +161,7 @@ export default function Page() {
         </div>
 
         <ResourceCrudPanel config={feedbackTypeConfig} showHeader />
+
         <ResourceCrudPanel config={feedbackConfig} showHeader />
       </main>
     </AppShell>

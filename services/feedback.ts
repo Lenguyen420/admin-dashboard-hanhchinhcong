@@ -1,88 +1,47 @@
-import { FeedbackType } from "@/types";
+export type AdminRecord = Record<string, unknown>;
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "";
-
-if (!API_BASE_URL) {
-  throw new Error(
-    "Thiếu VITE_API_BASE_URL. Hãy kiểm tra file .env và khởi động lại FE.",
-  );
-}
-
-
-export type FeedbackStatus =
-  | "PENDING"
-  | "PROCESSING"
-  | "RESOLVED"
-  | "REJECTED";
-
-export type Feedback = {
-  id: string;
-  title: string;
-  content: string;
-  feedbackTypeId?: string;
-  feedbackType?: FeedbackType;
-  status?: FeedbackStatus;
-  senderName?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  images?: string[];
-  response?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-};
 export type ApiResponse<T> = {
   success: boolean;
   message: string;
   data: T;
 };
-export type CreateFeedbackTypePayload = {
-  title: string;
-  description?: string;
-  order?: number;
-};
 
-export type UpdateFeedbackTypePayload = Partial<CreateFeedbackTypePayload>;
-
-export type CreateFeedbackPayload = {
-  title: string;
-  content: string;
-  feedbackTypeId: string;
-  senderName?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  images?: string[];
-};
-
-export type UpdateFeedbackPayload = Partial<
-  CreateFeedbackPayload & {
-    status: FeedbackStatus;
-    response: string;
-  }
->;
-
-export type FeedbackQuery = {
+export type PaginatedApiResponse<T> = {
+  data?: T[];
+  items?: T[];
+  feedbacks?: T[];
+  total?: number;
   page?: number;
   limit?: number;
-  keyword?: string;
-  status?: FeedbackStatus;
-  feedbackTypeId?: string;
-};
-
-export type PaginatedResponse<T> = {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
   totalPages?: number;
+  pagination?: {
+    page?: number;
+    limit?: number;
+    total?: number;
+    totalPages?: number;
+  };
 };
 
-function getHeaders(hasJsonBody = false): Record<string, string> {
+const API_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
+
+const ADMIN_KEY =
+  process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";
+
+if (!API_URL) {
+  throw new Error(
+    "Thiếu NEXT_PUBLIC_API_BASE_URL. Hãy kiểm tra file .env.local và khởi động lại FE.",
+  );
+}
+
+function getHeaders(hasJsonBody = false): HeadersInit {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
+
+  if (ADMIN_KEY) {
+    headers["x-admin-key"] = ADMIN_KEY;
+  }
 
   if (hasJsonBody) {
     headers["Content-Type"] = "application/json";
@@ -91,25 +50,9 @@ function getHeaders(hasJsonBody = false): Record<string, string> {
   return headers;
 }
 
-function buildQuery(params: Record<string, unknown>) {
-  const searchParams = new URLSearchParams();
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (
-      value !== undefined &&
-      value !== null &&
-      value !== ""
-    ) {
-      searchParams.set(key, String(value));
-    }
-  });
-
-  const queryString = searchParams.toString();
-
-  return queryString ? `?${queryString}` : "";
-}
-
-async function handleResponse<T>(response: Response): Promise<T> {
+async function handleResponse<T>(
+  response: Response,
+): Promise<T> {
   const text = await response.text();
 
   if (!response.ok) {
@@ -125,7 +68,10 @@ async function handleResponse<T>(response: Response): Promise<T> {
         if (Array.isArray(body.message)) {
           message = body.message.join(", ");
         } else {
-          message = body.message ?? body.error ?? message;
+          message =
+            body.message ??
+            body.error ??
+            message;
         }
       } catch {
         message = text;
@@ -135,82 +81,131 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new Error(message);
   }
 
-  if (!text) {
+  if (
+    response.status === 204 ||
+    !text
+  ) {
     return undefined as T;
   }
 
   return JSON.parse(text) as T;
 }
 
-/* =========================================================
- * Feedback types
- * ======================================================= */
-
-export async function getFeedbackTypes(): Promise<FeedbackType[]> {
-  const response = await fetch(`${API_BASE_URL}/feedback-types`, {
-      method: "GET",
-      headers: getHeaders(),
-  });
-
-  const result =
-      await handleResponse<ApiResponse<FeedbackType[]>>(response);
-
-  return result.data;
+function isApiResponse<T>(
+  value: unknown,
+): value is ApiResponse<T> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "success" in value &&
+    "message" in value &&
+    "data" in value
+  );
 }
 
-export async function getFeedbackType(id: string): Promise<FeedbackType> {
-  const response = await fetch(`${API_BASE_URL}/feedback-types/${id}`, {
+function unwrapApiResponse<T>(
+  value: T | ApiResponse<T>,
+): T {
+  if (isApiResponse<T>(value)) {
+    return value.data;
+  }
+
+  return value as T;
+}
+
+function normalizeListResponse(
+  value: unknown,
+): AdminRecord[] {
+  const unwrapped = unwrapApiResponse<unknown>(
+    value as ApiResponse<unknown>,
+  );
+
+  if (Array.isArray(unwrapped)) {
+    return unwrapped as AdminRecord[];
+  }
+
+  if (
+    typeof unwrapped === "object" &&
+    unwrapped !== null
+  ) {
+    const body =
+      unwrapped as PaginatedApiResponse<AdminRecord>;
+
+    const items =
+      body.items ??
+      body.feedbacks ??
+      body.data ??
+      [];
+
+    return Array.isArray(items) ? items : [];
+  }
+
+  return [];
+}
+
+function normalizeSingleResponse(
+  value: unknown,
+): AdminRecord {
+  const unwrapped = unwrapApiResponse<unknown>(
+    value as ApiResponse<unknown>,
+  );
+
+  if (
+    typeof unwrapped === "object" &&
+    unwrapped !== null &&
+    !Array.isArray(unwrapped)
+  ) {
+    return unwrapped as AdminRecord;
+  }
+
+  return {};
+}
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, options);
+
+  return handleResponse<T>(response);
+}
+
+export function getRecordId(
+  record: AdminRecord,
+): string | number | undefined {
+  const id =
+    record.id ??
+    record._id ??
+    record.uuid;
+
+  if (
+    typeof id === "string" ||
+    typeof id === "number"
+  ) {
+    return id;
+  }
+
+  return undefined;
+}
+
+export async function listResource(
+  resource: string,
+): Promise<AdminRecord[]> {
+  const data = await request<unknown>(`/${resource}`, {
     method: "GET",
     headers: getHeaders(),
     cache: "no-store",
   });
 
-  return handleResponse<FeedbackType>(response);
+  return normalizeListResponse(data);
 }
 
-export async function createFeedbackType(
-  payload: CreateFeedbackTypePayload,
-): Promise<FeedbackType> {
-  const response = await fetch(`${API_BASE_URL}/feedback-types`, {
-    method: "POST",
-    headers: getHeaders(true),
-    body: JSON.stringify(payload),
-  });
-
-  return handleResponse<FeedbackType>(response);
-}
-
-export async function updateFeedbackType(
-  id: string,
-  payload: UpdateFeedbackTypePayload,
-): Promise<FeedbackType> {
-  const response = await fetch(`${API_BASE_URL}/feedback-types/${id}`, {
-    method: "PATCH",
-    headers: getHeaders(true),
-    body: JSON.stringify(payload),
-  });
-
-  return handleResponse<FeedbackType>(response);
-}
-
-export async function deleteFeedbackType(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/feedback-types/${id}`, {
-    method: "DELETE",
-    headers: getHeaders(),
-  });
-
-  return handleResponse<void>(response);
-}
-
-/* =========================================================
- * Feedbacks
- * ======================================================= */
-
-export async function getFeedbacks(
-  query: FeedbackQuery = {},
-): Promise<PaginatedResponse<Feedback> | Feedback[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/feedbacks${buildQuery(query)}`,
+export async function getResourceById(
+  resource: string,
+  id: string | number,
+): Promise<AdminRecord> {
+  const data = await request<unknown>(
+    `/${resource}/${id}`,
     {
       method: "GET",
       headers: getHeaders(),
@@ -218,51 +213,45 @@ export async function getFeedbacks(
     },
   );
 
-  return handleResponse<PaginatedResponse<Feedback> | Feedback[]>(response);
+  return normalizeSingleResponse(data);
 }
 
-export async function getFeedback(id: string): Promise<Feedback> {
-  const response = await fetch(`${API_BASE_URL}/feedbacks/${id}`, {
-    method: "GET",
-    headers: getHeaders(),
-    cache: "no-store",
-  });
-
-  return handleResponse<Feedback>(response);
-}
-
-export async function createFeedback(
-  payload: CreateFeedbackPayload,
-): Promise<Feedback> {
-  const response = await fetch(`${API_BASE_URL}/feedbacks`, {
-      method: "POST",
-      headers: getHeaders(true),
-      body: JSON.stringify(payload),
-  });
-
-  const result = await handleResponse<ApiResponse<Feedback>>(response);
-
-  return result.data;
-}
-
-export async function updateFeedback(
-  id: string,
-  payload: UpdateFeedbackPayload,
-): Promise<Feedback> {
-  const response = await fetch(`${API_BASE_URL}/feedbacks/${id}`, {
-    method: "PATCH",
+export async function createResource(
+  resource: string,
+  payload: AdminRecord,
+): Promise<AdminRecord> {
+  const data = await request<unknown>(`/${resource}`, {
+    method: "POST",
     headers: getHeaders(true),
     body: JSON.stringify(payload),
   });
 
-  return handleResponse<Feedback>(response);
+  return normalizeSingleResponse(data);
 }
 
-export async function deleteFeedback(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/feedbacks/${id}`, {
+export async function updateResource(
+  resource: string,
+  id: string | number,
+  payload: AdminRecord,
+): Promise<AdminRecord> {
+  const data = await request<unknown>(
+    `/${resource}/${id}`,
+    {
+      method: "PATCH",
+      headers: getHeaders(true),
+      body: JSON.stringify(payload),
+    },
+  );
+
+  return normalizeSingleResponse(data);
+}
+
+export async function deleteResource(
+  resource: string,
+  id: string | number,
+): Promise<void> {
+  await request<unknown>(`/${resource}/${id}`, {
     method: "DELETE",
     headers: getHeaders(),
   });
-
-  return handleResponse<void>(response);
 }

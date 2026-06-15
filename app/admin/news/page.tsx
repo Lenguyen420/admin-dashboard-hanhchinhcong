@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import CrudAdminPage from "@/components/admin/CrudAdminPage";
+import CrudAdminPage from "@/components/admin/feedback";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
@@ -100,8 +100,7 @@ export default function Page() {
             {
               name: "title",
               label: "Tiêu đề tin tức",
-              placeholder:
-                "Ví dụ: Hướng dẫn đăng ký khai sinh trực tuyến",
+              placeholder: "Ví dụ: Hướng dẫn đăng ký khai sinh trực tuyến",
               required: true,
             },
 
@@ -114,31 +113,28 @@ export default function Page() {
             {
               name: "desc",
               label: "Mô tả ngắn",
-              placeholder:
-                "Nhập mô tả tóm tắt bài viết",
+              placeholder: "Nhập mô tả tóm tắt bài viết",
               type: "textarea",
             },
 
             {
               name: "link",
               label: "Đường dẫn tin tức",
-              placeholder:
-                "https://example.com/article",
+              placeholder: "https://example.com/article",
             },
 
             {
               name: "thumb",
               label: "Ảnh đại diện",
-              placeholder:
-                "https://example.com/image.jpg",
+              placeholder: "https://example.com/image.jpg",
             },
 
             {
-  name: "publishedAt",
-  label: "Ngày đăng",
-  type: "datetime-local",
-  required: true,
-},
+              name: "publishedAt",
+              label: "Ngày đăng",
+              type: "datetime-local",
+              required: true,
+            },
           ],
         }}
       />
