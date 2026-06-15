@@ -72,6 +72,7 @@ export type CrudAdminConfig = {
   editFields?: CrudField[];
 
   showCreateForm?: boolean;
+  mockData?: AdminRecord[];
 };
 
 type Notice = {
