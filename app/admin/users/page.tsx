@@ -26,6 +26,29 @@ export default function Page() {
             "Quản lý tài khoản người dùng, vai trò và các thông tin định danh từ endpoint /users.",
           emptyText: "Chưa có người dùng nào.",
           eyebrow: "Users",
+          mockData: [
+            {
+              id: 1,
+              name: "Nguyễn Văn Minh",
+              email: "minh.nguyen@example.gov.vn",
+              role: "ADMIN",
+              createdAt: "2026-06-12T01:30:00.000Z",
+            },
+            {
+              id: 2,
+              name: "Trần Thị Lan",
+              email: "lan.tran@example.gov.vn",
+              role: "USER",
+              createdAt: "2026-06-11T03:15:00.000Z",
+            },
+            {
+              id: 3,
+              name: "Lê Quang Huy",
+              email: "huy.le@example.gov.vn",
+              role: "USER",
+              createdAt: "2026-06-10T08:45:00.000Z",
+            },
+          ],
           fields: [
             {
               label: "Tên người dùng",

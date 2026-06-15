@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import {
   AlertCircle,
@@ -26,13 +26,22 @@ import {
   getResourceById,
   listResource,
   updateResource,
-} from "@/services/admin-crud.service";
-import type { AdminRecord } from "@/services/admin-crud.service";
+} from "@/services/feedback";
+import type { AdminRecord } from "@/services/feedback";
 
 export type CrudField = {
   name: string;
   label: string;
-  type?: "text" | "email" | "number" | "password" | "textarea" | "select" | "json"  | "datetime-local" ;
+  type?:
+    | "text"
+    | "email"
+    | "number"
+    | "password"
+    | "textarea"
+    | "select"
+    | "json"
+    | "datetime-local"
+    | "checkbox";
   placeholder?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;
@@ -40,16 +49,27 @@ export type CrudField = {
 };
 
 export type CrudAdminConfig = {
-  resource: string;
   activeHref: string;
-  eyebrow: string;
   title: string;
+  eyebrow: string;
   description: string;
+  resource: string;
   createTitle: string;
   listTitle: string;
   emptyText: string;
-  columns: Array<{ key: string; label: string }>;
+
+  columns: {
+    key: string;
+    label: string;
+  }[];
+
   fields: CrudField[];
+
+  editFields?: CrudField[];
+
+  mockData?: AdminRecord[];
+
+  showCreateForm?: boolean;
 };
 
 type Notice = {
@@ -87,8 +107,15 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-function parseFieldValue(field: CrudField, rawValue: FormDataEntryValue | null) {
+function parseFieldValue(
+  field: CrudField,
+  rawValue: FormDataEntryValue | null,
+) {
   const value = String(rawValue ?? "").trim();
+
+  if (field.type === "checkbox") {
+    return rawValue !== null;
+  }
 
   if (!value && !field.required) {
     return undefined;
@@ -117,11 +144,118 @@ function buildPayload(fields: CrudField[], formData: FormData) {
   }, {});
 }
 
+function formatDateTimeLocalValue(value: unknown): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(String(value));
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function getFieldDefaultValue(field: CrudField, record?: AdminRecord) {
+  const value = record?.[field.name];
+
+  if (field.type === "datetime-local") {
+    return formatDateTimeLocalValue(value);
+  }
+
+  if (field.type === "json") {
+    return value === undefined || value === null
+      ? ""
+      : JSON.stringify(value, null, 2);
+  }
+
+  return value === undefined || value === null ? "" : String(value);
+}
+
+function FieldControl({
+  field,
+  record,
+}: {
+  field: CrudField;
+  record?: AdminRecord;
+}) {
+  const defaultValue = getFieldDefaultValue(field, record);
+
+  return (
+    <label className="block" key={field.name}>
+      <span className="mb-1.5 block text-sm font-semibold text-[#3f454d]">
+        {field.label}
+      </span>
+      {field.type === "checkbox" ? (
+        <div className="flex items-start gap-3 rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 py-2.5">
+          <input
+            className="mt-0.5 h-4 w-4 rounded border-[#b8c2d0] text-[#0d6efd] focus:ring-[#c7defd]"
+            defaultChecked={Boolean(record?.[field.name])}
+            name={field.name}
+            type="checkbox"
+          />
+          <span className="text-sm leading-5 text-[#526071]">
+            Bat truong nay
+          </span>
+        </div>
+      ) : field.type === "textarea" || field.type === "json" ? (
+        <textarea
+          className="min-h-[110px] w-full resize-y rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 py-2 text-sm leading-6 outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
+          defaultValue={defaultValue}
+          name={field.name}
+          placeholder={field.placeholder}
+          required={field.required}
+        />
+      ) : field.type === "select" ? (
+        <select
+          className="h-10 w-full rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 text-sm outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
+          defaultValue={defaultValue || field.options?.[0]?.value}
+          name={field.name}
+          required={field.required}
+        >
+          {field.options?.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          className="h-10 w-full rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 text-sm outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
+          defaultValue={defaultValue}
+          name={field.name}
+          placeholder={field.placeholder}
+          required={field.required}
+          type={field.type ?? "text"}
+        />
+      )}
+      {field.helper ? (
+        <span className="mt-1.5 block text-xs leading-5 text-[#667085]">
+          {field.helper}
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
 function stripReadonlyFields(record: AdminRecord) {
   const next: AdminRecord = {};
 
   for (const [key, value] of Object.entries(record)) {
-    if (["id", "_id", "createdAt", "updatedAt", "creationTime", "responseTime"].includes(key)) {
+    if (
+      [
+        "id",
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "creationTime",
+        "responseTime",
+      ].includes(key)
+    ) {
       continue;
     }
 
@@ -143,11 +277,13 @@ function ResourceIcon({ resource }: { resource: string }) {
 }
 
 function RecordModal({
+  fields,
   isSaving,
   onClose,
   onSave,
   record,
 }: {
+  fields?: CrudField[];
   isSaving: boolean;
   onClose: () => void;
   onSave: (payload: AdminRecord) => Promise<void>;
@@ -163,7 +299,11 @@ function RecordModal({
     setError("");
 
     try {
-      await onSave(JSON.parse(json) as AdminRecord);
+      const payload = fields
+        ? buildPayload(fields, new FormData(event.currentTarget))
+        : (JSON.parse(json) as AdminRecord);
+
+      await onSave(payload);
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -203,11 +343,17 @@ function RecordModal({
                 {error}
               </div>
             ) : null}
-            <textarea
-              className="min-h-[360px] w-full resize-y rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 py-3 font-mono text-sm leading-6 text-[#182433] outline-none focus:border-[#0d6efd] focus:ring-2 focus:ring-[#c7defd]"
-              onChange={(event) => setJson(event.target.value)}
-              value={json}
-            />
+            {fields ? (
+              fields.map((field) => (
+                <FieldControl field={field} key={field.name} record={record} />
+              ))
+            ) : (
+              <textarea
+                className="min-h-[360px] w-full resize-y rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 py-3 font-mono text-sm leading-6 text-[#182433] outline-none focus:border-[#0d6efd] focus:ring-2 focus:ring-[#c7defd]"
+                onChange={(event) => setJson(event.target.value)}
+                value={json}
+              />
+            )}
           </div>
 
           <footer className="flex items-center justify-end gap-2 border-t border-[#dfe3e8] bg-[#f8fafc] px-5 py-4">
@@ -223,7 +369,11 @@ function RecordModal({
               disabled={isSaving}
               type="submit"
             >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Pencil className="h-4 w-4" />
+              )}
               Lưu
             </button>
           </footer>
@@ -233,10 +383,18 @@ function RecordModal({
   );
 }
 
-export default function CrudAdminPage({ config }: { config: CrudAdminConfig }) {
-  const [items, setItems] = useState<AdminRecord[]>([]);
+export function ResourceCrudPanel({
+  config,
+  showHeader = true,
+}: {
+  config: CrudAdminConfig;
+  showHeader?: boolean;
+}) {
+  const [items, setItems] = useState<AdminRecord[]>(config.mockData ?? []);
   const [query, setQuery] = useState("");
-  const [selectedRecord, setSelectedRecord] = useState<AdminRecord | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<AdminRecord | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState<Notice>({
@@ -244,23 +402,50 @@ export default function CrudAdminPage({ config }: { config: CrudAdminConfig }) {
     message: "Đang tải dữ liệu từ backend...",
   });
 
+  const resolveItems = useCallback((data: AdminRecord[]) => {
+    if (data.length > 0 || !config.mockData?.length) {
+      return data;
+    }
+
+    return config.mockData;
+  }, [config.mockData]);
+
+  const getLoadSuccessMessage = useCallback((data: AdminRecord[]) => {
+    if (data.length > 0 || !config.mockData?.length) {
+      return `Đã tải ${data.length} bản ghi từ /${config.resource}.`;
+    }
+
+    return `Endpoint /${config.resource} chưa có dữ liệu, đang hiển thị ${config.mockData.length} bản ghi mẫu.`;
+  }, [config.mockData, config.resource]);
+
+  const getLoadFallbackMessage = useCallback((error: unknown) => {
+    if (config.mockData?.length) {
+      return `Không kết nối được /${config.resource}, đang hiển thị ${config.mockData.length} bản ghi mẫu.`;
+    }
+
+    return error instanceof Error
+      ? error.message
+      : `Không tải được dữ liệu /${config.resource}.`;
+  }, [config.mockData, config.resource]);
+
   async function loadItems() {
     setIsLoading(true);
 
     try {
       const data = await listResource(config.resource);
-      setItems(data);
+      setItems(resolveItems(data));
       setNotice({
         kind: "success",
-        message: `Đã tải ${data.length} bản ghi từ /${config.resource}.`,
+        message: getLoadSuccessMessage(data),
       });
     } catch (error) {
+      if (config.mockData?.length) {
+        setItems(config.mockData);
+      }
+
       setNotice({
-        kind: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : `Không tải được dữ liệu /${config.resource}.`,
+        kind: config.mockData?.length ? "info" : "error",
+        message: getLoadFallbackMessage(error),
       });
     } finally {
       setIsLoading(false);
@@ -278,22 +463,23 @@ export default function CrudAdminPage({ config }: { config: CrudAdminConfig }) {
           return;
         }
 
-        setItems(data);
+        setItems(resolveItems(data));
         setNotice({
           kind: "success",
-          message: `Đã tải ${data.length} bản ghi từ /${config.resource}.`,
+          message: getLoadSuccessMessage(data),
         });
       } catch (error) {
         if (!isMounted) {
           return;
         }
 
+        if (config.mockData?.length) {
+          setItems(config.mockData);
+        }
+
         setNotice({
-          kind: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : `Không tải được dữ liệu /${config.resource}.`,
+          kind: config.mockData?.length ? "info" : "error",
+          message: getLoadFallbackMessage(error),
         });
       } finally {
         if (isMounted) {
@@ -307,7 +493,7 @@ export default function CrudAdminPage({ config }: { config: CrudAdminConfig }) {
     return () => {
       isMounted = false;
     };
-  }, [config.resource]);
+  }, [config.mockData, config.resource, getLoadFallbackMessage, getLoadSuccessMessage, resolveItems]);
 
   const filteredItems = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -432,111 +618,48 @@ export default function CrudAdminPage({ config }: { config: CrudAdminConfig }) {
   }[notice.kind];
 
   return (
-    <main className="mx-auto max-w-[1288px] px-4 py-6">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-3xl">
-          <p className="text-xs font-medium uppercase tracking-wide text-[#667085]">
-            {config.eyebrow}
-          </p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#182433]">
-            {config.title}
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-[#526071]">
-            {config.description}
-          </p>
+    <section className="space-y-4">
+      {showHeader ? (
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#667085]">
+              {config.eyebrow}
+            </p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#182433]">
+              {config.title}
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-[#526071]">
+              {config.description}
+            </p>
+          </div>
+          <button
+            aria-label="Tải lại"
+            className="inline-flex h-10 w-fit items-center gap-2 rounded-md border border-[#dfe3e8] bg-white px-4 text-sm font-medium text-[#182433] shadow-sm hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isLoading}
+            onClick={loadItems}
+            type="button"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Tải lại
+          </button>
         </div>
-        <button
-          aria-label="Tải lại"
-          className="inline-flex h-10 w-fit items-center gap-2 rounded-md border border-[#dfe3e8] bg-white px-4 text-sm font-medium text-[#182433] shadow-sm hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-70"
-          disabled={isLoading}
-          onClick={loadItems}
-          type="button"
-        >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Tải lại
-        </button>
-      </div>
+      ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <form
-          className="h-fit rounded-md border border-[#dfe3e8] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] xl:sticky xl:top-5"
-          onSubmit={submitCreate}
-        >
-          <div className="border-b border-[#dfe3e8] p-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#eef6ff] text-[#0d6efd]">
-                <ResourceIcon resource={config.resource} />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase text-[#0d6efd]">
-                  POST /{config.resource}
-                </p>
-                <h2 className="text-base font-semibold text-[#182433]">
-                  {config.createTitle}
-                </h2>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4 p-5">
-            {config.fields.map((field) => (
-              <label className="block" key={field.name}>
-                <span className="mb-1.5 block text-sm font-semibold text-[#3f454d]">
-                  {field.label}
-                </span>
-                {field.type === "textarea" || field.type === "json" ? (
-                  <textarea
-                    className="min-h-[110px] w-full resize-y rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 py-2 text-sm leading-6 outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
-                    name={field.name}
-                    placeholder={field.placeholder}
-                    required={field.required}
-                  />
-                ) : field.type === "select" ? (
-                  <select
-                    className="h-10 w-full rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 text-sm outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
-                    name={field.name}
-                    required={field.required}
-                  >
-                    {field.options?.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    className="h-10 w-full rounded-md border border-[#d8dee8] bg-[#f8fafc] px-3 text-sm outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
-                    name={field.name}
-                    placeholder={field.placeholder}
-                    required={field.required}
-                    type={field.type ?? "text"}
-                  />
-                )}
-                {field.helper ? (
-                  <span className="mt-1.5 block text-xs leading-5 text-[#667085]">
-                    {field.helper}
-                  </span>
-                ) : null}
-              </label>
-            ))}
-          </div>
-
-          <div className="border-t border-[#dfe3e8] p-5">
-            <button
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#0d6efd] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#0b5ed7] disabled:cursor-not-allowed disabled:opacity-70"
-              disabled={isSaving}
-              type="submit"
-            >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Tạo mới
-            </button>
-          </div>
-        </form>
-
+      <div className="grid">
         <section className="min-w-0 overflow-hidden rounded-md border border-[#dfe3e8] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <div className="border-b border-[#dfe3e8] p-5">
-            <div className={`mb-4 flex items-start gap-2.5 rounded-md border px-3 py-2 text-sm ${noticeClassName}`}>
-              {notice.kind === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+            <div
+              className={`mb-4 flex items-start gap-2.5 rounded-md border px-3 py-2 text-sm ${noticeClassName}`}
+            >
+              {notice.kind === "success" ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0" />
+              )}
               <span>{notice.message}</span>
             </div>
 
@@ -659,12 +782,21 @@ export default function CrudAdminPage({ config }: { config: CrudAdminConfig }) {
 
       {selectedRecord ? (
         <RecordModal
+          fields={config.editFields}
           isSaving={isSaving}
           onClose={() => setSelectedRecord(null)}
           onSave={saveSelectedRecord}
           record={selectedRecord}
         />
       ) : null}
+    </section>
+  );
+}
+
+export default function CrudAdminPage({ config }: { config: CrudAdminConfig }) {
+  return (
+    <main className="mx-auto max-w-[1288px] px-4 py-6">
+      <ResourceCrudPanel config={config} />
     </main>
   );
 }

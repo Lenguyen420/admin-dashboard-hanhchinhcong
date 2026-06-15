@@ -24,8 +24,57 @@ export type CreateKnowledgePayload = {
 
 export type UpdateKnowledgePayload = Partial<CreateKnowledgePayload>;
 
+export type UnansweredQuestionStatus = "OPEN" | "RESOLVED" | "IGNORED";
+
+export type ChatbotUnansweredQuestion = {
+  id: string;
+  question: string;
+  normalizedQuestion: string;
+  questionHash: string;
+  askCount: number;
+  firstAskedAt: string;
+  lastAskedAt: string;
+  status: UnansweredQuestionStatus;
+  resolvedByDocumentId: string | null;
+  note: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+};
+export type UnansweredQuestionsQuery = {
+  page?: number;
+  limit?: number;
+  keyword?: string;
+  status?: UnansweredQuestionStatus;
+};
+
+export type UnansweredQuestionsPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type UnansweredQuestionsResult = {
+  items: ChatbotUnansweredQuestion[];
+  pagination: UnansweredQuestionsPagination;
+};
+type UnansweredQuestionsApiResponse =
+  | ChatbotUnansweredQuestion[]
+  | {
+      data?: ChatbotUnansweredQuestion[];
+      items?: ChatbotUnansweredQuestion[];
+      questions?: ChatbotUnansweredQuestion[];
+      unansweredQuestions?: ChatbotUnansweredQuestion[];
+      pagination?: Partial<UnansweredQuestionsPagination>;
+    };
+
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const UNANSWERED_QUESTIONS_PATH =
+  process.env.NEXT_PUBLIC_UNANSWERED_QUESTIONS_PATH ??
+  "/chat/unanswered-questions";
 
 const ADMIN_KEY =
   process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";
@@ -71,6 +120,50 @@ async function handleResponse<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+function normalizeUnansweredQuestionsResponse(
+  response: UnansweredQuestionsApiResponse,
+  query: UnansweredQuestionsQuery,
+): UnansweredQuestionsResult {
+  const defaultPage = query.page ?? 1;
+  const defaultLimit = query.limit ?? 20;
+
+  if (Array.isArray(response)) {
+    return {
+      items: response,
+      pagination: {
+        page: defaultPage,
+        limit: defaultLimit,
+        total: response.length,
+        totalPages:
+          response.length === 0
+            ? 0
+            : Math.ceil(response.length / defaultLimit),
+      },
+    };
+  }
+
+  const items =
+    response.data ??
+    response.items ??
+    response.questions ??
+    response.unansweredQuestions ??
+    [];
+
+  return {
+    items,
+    pagination: {
+      page: response.pagination?.page ?? defaultPage,
+      limit: response.pagination?.limit ?? defaultLimit,
+      total: response.pagination?.total ?? items.length,
+      totalPages:
+        response.pagination?.totalPages ??
+        (items.length === 0
+          ? 0
+          : Math.ceil(items.length / defaultLimit)),
+    },
+  };
 }
 
 export async function getKnowledgeItems(): Promise<
@@ -171,5 +264,50 @@ export async function archiveKnowledge(
 
   return handleResponse<KnowledgeItem>(
     response,
+  );
+}
+
+export async function getUnansweredQuestions(
+  query: UnansweredQuestionsQuery = {},
+): Promise<UnansweredQuestionsResult> {
+  const searchParams = new URLSearchParams();
+
+  if (query.page) {
+    searchParams.set("page", String(query.page));
+  }
+
+  if (query.limit) {
+    searchParams.set("limit", String(query.limit));
+  }
+
+  if (query.keyword?.trim()) {
+    searchParams.set("keyword", query.keyword.trim());
+  }
+
+  if (query.status) {
+    searchParams.set("status", query.status);
+  }
+
+  const queryString = searchParams.toString();
+
+  const response = await fetch(
+    `${API_URL}${UNANSWERED_QUESTIONS_PATH}${
+      queryString ? `?${queryString}` : ""
+    }`,
+    {
+      method: "GET",
+      headers: getHeaders(),
+      cache: "no-store",
+    },
+  );
+
+  const data =
+    await handleResponse<UnansweredQuestionsApiResponse>(
+      response,
+    );
+
+  return normalizeUnansweredQuestionsResponse(
+    data,
+    query,
   );
 }

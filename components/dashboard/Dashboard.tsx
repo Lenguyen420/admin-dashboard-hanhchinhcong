@@ -1,46 +1,66 @@
 import {
+  Activity,
+  BadgeCheck,
+  BellRing,
+  Building2,
+  CheckCircle2,
   ChevronDown,
-  DollarSign,
-  Repeat2,
-  ShoppingCart,
-  Sun,
-  ThumbsUp,
+  Clock3,
+  FileCheck2,
+  FileText,
+  MapPinned,
+  MessageSquareText,
+  ShieldCheck,
+  UserCheck,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+
 import CitizenAssistantChat from "@/components/chat/CitizenAssistantChat";
 import AppShell from "@/components/layout/AppShell";
 
-const statCards = [
+type StatCardData = {
+  label: string;
+  value: string;
+  meta: string;
+  change: string;
+  kind: "progress" | "area" | "line" | "bars";
+  progress?: number;
+  positive?: boolean;
+  neutral?: boolean;
+};
+
+const statCards: StatCardData[] = [
   {
-    label: "Sales",
-    value: "75%",
-    meta: "Conversion rate",
-    change: "7%",
+    label: "Hồ sơ trực tuyến",
+    value: "1.248",
+    meta: "Trong tháng này",
+    change: "+12%",
     kind: "progress",
-    progress: 75,
+    progress: 82,
     positive: true,
   },
   {
-    label: "Revenue",
-    value: "$4,300",
-    meta: "Last 7 days",
-    change: "8%",
+    label: "Hồ sơ đã xử lý",
+    value: "1.086",
+    meta: "Trong tháng này",
+    change: "+9%",
     kind: "area",
     positive: true,
   },
   {
-    label: "New clients",
-    value: "6,782",
-    meta: "Last 7 days",
-    change: "0%",
+    label: "Phản ánh kiến nghị",
+    value: "126",
+    meta: "Trong tháng này",
+    change: "+4%",
     kind: "line",
     neutral: true,
   },
   {
-    label: "Active subscriptions",
-    value: "2,986",
-    meta: "Last 7 days",
-    change: "4%",
+    label: "Lượt truy cập cổng số",
+    value: "8.542",
+    meta: "Trong 30 ngày",
+    change: "+16%",
     kind: "bars",
     positive: true,
   },
@@ -48,90 +68,88 @@ const statCards = [
 
 const activityCards = [
   {
-    title: "132 Sales",
-    subtitle: "12 waiting payments",
-    icon: DollarSign,
-    className: "bg-[#0d6efd] text-white",
+    title: "42 hồ sơ chờ xử lý",
+    subtitle: "Cần tiếp nhận và phân loại",
+    icon: Clock3,
+    className: "bg-amber-500 text-white",
   },
   {
-    title: "78 Orders",
-    subtitle: "32 shipped",
-    icon: ShoppingCart,
-    className: "bg-[#2fb344] text-white",
+    title: "1.086 hồ sơ hoàn thành",
+    subtitle: "Đã trả kết quả cho công dân",
+    icon: CheckCircle2,
+    className: "bg-emerald-600 text-white",
   },
   {
-    title: "623 Shares",
-    subtitle: "16 today",
-    icon: Repeat2,
-    className: "bg-black text-white",
+    title: "18 phản ánh mới",
+    subtitle: "Đang chờ cán bộ phản hồi",
+    icon: MessageSquareText,
+    className: "bg-blue-600 text-white",
   },
   {
-    title: "132 Likes",
-    subtitle: "21 today",
-    icon: ThumbsUp,
-    className: "bg-[#0d6efd] text-white",
+    title: "32 thông báo",
+    subtitle: "Đã gửi trong hôm nay",
+    icon: BellRing,
+    className: "bg-violet-600 text-white",
   },
 ];
 
 const barValues = [
-  18, 20, 17, 22, 19, 24, 18, 21, 23, 20, 31, 25, 21, 18, 39, 27, 31, 25, 24,
-  28, 31, 26, 34,
+  32, 46, 38, 52, 44, 58, 62, 49, 66, 72, 54, 68, 75, 64, 82, 78, 88, 70, 76,
+  84, 90, 86, 94, 88,
 ];
-
 
 function WelcomeIllustration() {
   return (
     <svg
       aria-hidden="true"
-      className="h-[170px] w-[230px] max-w-full"
-      viewBox="0 0 230 170"
+      className="h-[180px] w-[240px] max-w-full"
+      viewBox="0 0 240 180"
     >
-      <rect x="43" y="24" width="133" height="112" rx="36" fill="#eaf1fb" />
-      <path
-        d="M98 28c22 6 51 3 69 29 13 19 17 46 4 65-16 24-51 26-78 19-31-8-54-28-49-58 6-33 28-62 54-55Z"
-        fill="#dbe9fb"
+      <rect x="30" y="24" width="174" height="126" rx="32" fill="#eff6ff" />
+
+      <rect
+        x="78"
+        y="43"
+        width="88"
+        height="102"
+        rx="10"
+        fill="#ffffff"
+        stroke="#bfdbfe"
+        strokeWidth="2"
       />
-      <path d="M71 139h121" stroke="#cfd7e3" strokeWidth="2" />
-      <circle cx="124" cy="59" r="20" fill="#0d6efd" />
+
+      <rect x="94" y="59" width="56" height="8" rx="4" fill="#dbeafe" />
+      <rect x="94" y="78" width="56" height="8" rx="4" fill="#dbeafe" />
+      <rect x="94" y="97" width="38" height="8" rx="4" fill="#dbeafe" />
+
+      <circle cx="70" cy="67" r="24" fill="#2563eb" />
       <path
-        d="m114 59 7 7 15-16"
+        d="m60 67 7 7 14-17"
         fill="none"
-        stroke="#fff"
+        stroke="#ffffff"
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="5"
       />
-      <path d="M73 81c-5 18 1 39 14 50" stroke="#0d6efd" strokeWidth="6" />
+
+      <circle cx="174" cy="117" r="27" fill="#10b981" />
       <path
-        d="M67 90c-11 13-21 12-25 4"
-        fill="none"
-        stroke="#f7b37f"
+        d="M174 102v30M159 117h30"
+        stroke="#ffffff"
         strokeLinecap="round"
-        strokeWidth="7"
+        strokeWidth="5"
       />
-      <path d="M78 71c9 4 13 15 8 24l-18-7c1-9 4-14 10-17Z" fill="#4f6074" />
-      <path d="m82 102 8 35h-13l-11-32Z" fill="#0d6efd" />
-      <path d="m67 105-13 25h-11l15-35Z" fill="#0b5ed7" />
-      <circle cx="77" cy="65" r="8" fill="#f7b37f" />
-      <path d="M68 66c7 1 14-3 15-9-9-4-18 0-15 9Z" fill="#2c3440" />
-      <path d="M137 91c-20 5-29 22-25 45h43c8-16 3-35-18-45Z" fill="#0d6efd" />
-      <path d="M135 91c9 1 16 8 20 20l-13 3-7-23Z" fill="#425466" />
-      <circle cx="141" cy="84" r="8" fill="#f7b37f" />
-      <path d="M132 81c8 2 16 1 19-4-7-7-17-6-19 4Z" fill="#425466" />
-      <rect x="161" y="86" width="35" height="47" rx="6" fill="#56616f" />
-      <rect x="167" y="78" width="28" height="11" rx="2" fill="#8792a2" />
-      <circle cx="178" cy="112" r="13" fill="#2d3748" />
-      <circle cx="178" cy="112" r="5" fill="#dbe9fb" />
+
+      <circle cx="183" cy="55" r="13" fill="#f59e0b" />
       <path
-        d="M49 57c6 9 12 9 18 0M176 42c7 7 12 7 17-1M198 61c-7 12-5 20 5 25M101 39c-5-8-4-14 2-20"
+        d="M183 48v8l5 4"
         fill="none"
-        stroke="#0d6efd"
+        stroke="#ffffff"
         strokeLinecap="round"
-        strokeWidth="2"
+        strokeWidth="3"
       />
-      <circle cx="97" cy="107" r="2" fill="#0d6efd" />
-      <circle cx="150" cy="49" r="2.5" fill="#667085" />
-      <circle cx="172" cy="63" r="2" fill="#9fb8d8" />
+
+      <path d="M49 151h144" stroke="#cbd5e1" strokeWidth="2" />
     </svg>
   );
 }
@@ -144,30 +162,24 @@ function SparkLine({
   filled?: boolean;
 }) {
   const path =
-    "M1 47 C15 52 24 47 34 48 C45 48 51 42 61 45 C69 48 70 35 78 38 C88 44 98 40 108 42 C120 44 123 29 130 33 C138 37 141 49 151 43 C160 37 165 44 172 48 C183 56 186 36 198 41 C210 45 216 34 228 28";
+    "M1 48 C14 50 23 43 34 46 C45 49 52 37 62 40 C72 44 80 30 90 34 C103 39 112 28 122 31 C133 35 140 23 151 27 C162 31 172 22 183 25 C195 29 207 18 229 15";
 
   return (
-    <svg className="h-full w-full" viewBox="0 0 230 64" preserveAspectRatio="none">
+    <svg
+      className="h-full w-full"
+      viewBox="0 0 230 64"
+      preserveAspectRatio="none"
+    >
       {filled ? (
-        <path
-          d={`${path} L228 64 L1 64 Z`}
-          fill="#0d6efd"
-          opacity="0.12"
-        />
+        <path d={`${path} L229 64 L1 64 Z`} fill="#2563eb" opacity="0.12" />
       ) : null}
-      <path
-        d="M1 34 C12 18 19 51 30 28 C41 7 47 56 60 31 C73 4 82 61 94 35 C106 15 115 45 126 23 C137 2 143 59 157 36 C171 13 179 49 190 25 C202 4 212 47 229 18"
-        fill="none"
-        stroke="#aab4c2"
-        strokeDasharray="4 4"
-        strokeWidth="1.4"
-      />
+
       <path
         d={path}
         fill="none"
-        stroke={muted ? "#93a4b7" : "#0d6efd"}
+        stroke={muted ? "#94a3b8" : "#2563eb"}
         strokeLinecap="round"
-        strokeWidth="2.2"
+        strokeWidth="2.4"
       />
     </svg>
   );
@@ -176,41 +188,37 @@ function SparkLine({
 function Gauge() {
   return (
     <div className="relative mx-auto mt-3 h-[118px] w-[178px]">
-      <svg viewBox="0 0 180 118" className="h-full w-full">
+      <svg className="h-full w-full" viewBox="0 0 180 118">
         <path
           d="M31 99a60 60 0 0 1 118 0"
           fill="none"
-          stroke="#e4e8ee"
-          strokeLinecap="butt"
+          stroke="#e2e8f0"
           strokeWidth="22"
         />
         <path
           d="M31 99a60 60 0 0 1 118 0"
           fill="none"
           pathLength="100"
-          stroke="#0d6efd"
-          strokeLinecap="butt"
-          strokeDasharray="78 100"
+          stroke="#10b981"
+          strokeDasharray="87 100"
           strokeWidth="22"
         />
       </svg>
-      <div className="absolute inset-x-0 bottom-4 text-center text-2xl font-medium text-[#253142]">
-        78%
+
+      <div className="absolute inset-x-0 bottom-4 text-center">
+        <p className="text-2xl font-semibold text-slate-800">87%</p>
+        <p className="mt-1 text-xs text-slate-500">Đã kích hoạt</p>
       </div>
     </div>
   );
 }
 
-function TinyBars({ compact = false }: { compact?: boolean }) {
-  const values = compact
-    ? [32, 38, 34, 50, 39, 42, 44, 37, 53, 48, 65, 51, 41, 36, 79, 48, 55, 43, 49, 38, 52, 46, 41, 58]
-    : barValues;
-
+function TinyBars() {
   return (
     <div className="flex h-full items-end gap-[5px]">
-      {values.map((value, index) => (
+      {barValues.map((value, index) => (
         <span
-          className="w-full min-w-1 rounded-t-sm bg-[#0d6efd]"
+          className="w-full min-w-1 rounded-t-sm bg-blue-600"
           key={`${value}-${index}`}
           style={{ height: `${value}%` }}
         />
@@ -228,35 +236,26 @@ function StatCard({
   progress,
   positive,
   neutral,
-}: {
-  label: string;
-  value: string;
-  meta: string;
-  change: string;
-  kind: string;
-  progress?: number;
-  positive?: boolean;
-  neutral?: boolean;
-}) {
+}: StatCardData) {
   return (
-    <article className="rounded-md border border-[#dfe3e8] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="flex items-start justify-between gap-4">
+    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-[#667085]">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {label}
           </p>
-          <div className="mt-1 flex items-baseline gap-2">
-            <p className="text-2xl font-semibold leading-none text-[#182433]">
-              {value}
-            </p>
+
+          <div className="mt-2 flex items-baseline gap-2">
+            <p className="text-2xl font-semibold text-slate-800">{value}</p>
+
             {kind !== "progress" ? (
               <span
-                className={`text-sm ${
+                className={`text-sm font-medium ${
                   neutral
-                    ? "text-[#f59f00]"
+                    ? "text-amber-600"
                     : positive
-                      ? "text-[#2fb344]"
-                      : "text-[#d63939]"
+                      ? "text-emerald-600"
+                      : "text-red-600"
                 }`}
               >
                 {change}
@@ -264,21 +263,26 @@ function StatCard({
             ) : null}
           </div>
         </div>
-        <button className="flex items-center gap-1 text-sm text-[#667085]">
+
+        <button
+          className="flex items-center gap-1 text-xs text-slate-500"
+          type="button"
+        >
           {meta}
           <ChevronDown className="h-3.5 w-3.5" />
         </button>
       </div>
 
       {kind === "progress" ? (
-        <div className="mt-6">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-[#182433]">{meta}</span>
-            <span className="text-[#2fb344]">{change}</span>
+        <div className="mt-7">
+          <div className="mb-2 flex justify-between text-sm">
+            <span className="text-slate-600">Tỷ lệ hoàn tất</span>
+            <span className="font-medium text-emerald-600">{change}</span>
           </div>
-          <div className="h-1 overflow-hidden rounded-full bg-[#e9edf3]">
+
+          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
             <div
-              className="h-full rounded-full bg-[#0d6efd]"
+              className="h-full rounded-full bg-blue-600"
               style={{ width: `${progress ?? 0}%` }}
             />
           </div>
@@ -286,20 +290,20 @@ function StatCard({
       ) : null}
 
       {kind === "area" ? (
-        <div className="mt-6 h-[48px]">
+        <div className="mt-6 h-[52px]">
           <SparkLine filled />
         </div>
       ) : null}
 
       {kind === "line" ? (
-        <div className="mt-6 h-[48px]">
-          <SparkLine />
+        <div className="mt-6 h-[52px]">
+          <SparkLine muted />
         </div>
       ) : null}
 
       {kind === "bars" ? (
-        <div className="mt-5 h-[58px]">
-          <TinyBars compact />
+        <div className="mt-6 h-[58px]">
+          <TinyBars />
         </div>
       ) : null}
     </article>
@@ -318,15 +322,16 @@ function ActivityCard({
   className: string;
 }) {
   return (
-    <article className="flex items-center gap-4 rounded-md border border-[#dfe3e8] bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <article className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${className}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${className}`}
       >
         <Icon className="h-5 w-5" strokeWidth={1.9} />
       </div>
+
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-[#182433]">{title}</p>
-        <p className="truncate text-sm text-[#667085]">{subtitle}</p>
+        <p className="truncate text-sm font-semibold text-slate-800">{title}</p>
+        <p className="mt-1 truncate text-sm text-slate-500">{subtitle}</p>
       </div>
     </article>
   );
@@ -335,119 +340,191 @@ function ActivityCard({
 function MainStats() {
   return (
     <div className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr]">
-      <article className="rounded-md border border-[#dfe3e8] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <div className="grid min-h-[190px] gap-5 sm:grid-cols-[1.45fr_1fr]">
+      <article className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-blue-50 p-5 shadow-sm">
+        <div className="grid min-h-[200px] gap-5 sm:grid-cols-[1.45fr_1fr]">
           <div className="flex flex-col">
             <div>
-              <h2 className="text-xl font-semibold text-[#182433]">
-                Welcome back, Pawel
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+                Trung tâm điều hành số
+              </p>
+
+              <h2 className="mt-2 text-xl font-semibold text-slate-800">
+                Chào mừng đến Dashboard Công dân số
               </h2>
-              <p className="mt-3 max-w-[320px] text-sm leading-6 text-[#526071]">
-                You have 5 new messages and 2 new notifications.
+
+              <p className="mt-3 max-w-[420px] text-sm leading-6 text-slate-600">
+                Theo dõi dữ liệu công dân, hồ sơ hành chính, phản ánh kiến nghị
+                và mức độ sử dụng dịch vụ số tại xã/phường.
               </p>
             </div>
-            <div className="mt-auto grid gap-8 pt-8 sm:grid-cols-2">
+
+            <div className="mt-auto grid gap-7 pt-8 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-[#667085]">
-                  Today&apos;s sales
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Hồ sơ tiếp nhận hôm nay
                 </p>
+
                 <div className="mt-1 flex items-center gap-2">
-                  <span className="text-base font-semibold text-[#182433]">
-                    6,782
+                  <span className="text-lg font-semibold text-slate-800">
+                    86
                   </span>
-                  <span className="text-sm text-[#2fb344]">7%</span>
+                  <span className="text-sm font-medium text-emerald-600">
+                    +12%
+                  </span>
                 </div>
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#e9edf3]">
-                  <div className="h-full w-[70%] bg-[#2fb344]" />
+
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-full w-[72%] rounded-full bg-emerald-500" />
                 </div>
               </div>
+
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-[#667085]">
-                  Growth rate
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Tỷ lệ xử lý đúng hạn
                 </p>
+
                 <div className="mt-1 flex items-center gap-2">
-                  <span className="text-base font-semibold text-[#182433]">
-                    78.4%
+                  <span className="text-lg font-semibold text-slate-800">
+                    96,8%
                   </span>
-                  <span className="text-sm text-[#d63939]">-1%</span>
+                  <span className="text-sm font-medium text-emerald-600">
+                    +2,4%
+                  </span>
                 </div>
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#e9edf3]">
-                  <div className="h-full w-[78%] bg-[#d63939]" />
+
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-full w-[96%] rounded-full bg-blue-600" />
                 </div>
               </div>
             </div>
           </div>
+
           <div className="flex items-center justify-center">
             <WelcomeIllustration />
           </div>
         </div>
       </article>
 
-      <article className="rounded-md border border-[#dfe3e8] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <p className="text-xs font-medium uppercase tracking-wide text-[#667085]">
-          Total users
-        </p>
-        <div className="mt-1 flex items-baseline gap-2">
-          <p className="text-2xl font-semibold leading-none text-[#182433]">
-            75,782
-          </p>
-          <span className="text-sm text-[#2fb344]">2%</span>
+      <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+            <Users className="h-5 w-5" />
+          </div>
+
+          <span className="text-sm font-medium text-emerald-600">+3,8%</span>
         </div>
-        <p className="mt-3 text-sm text-[#667085]">
-          24,635 users increased from last month
+
+        <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Tổng công dân
         </p>
-        <div className="mt-11 h-[58px]">
+
+        <p className="mt-2 text-2xl font-semibold text-slate-800">18.642</p>
+
+        <p className="mt-3 text-sm leading-6 text-slate-500">
+          Tăng 684 công dân so với tháng trước
+        </p>
+
+        <div className="mt-5 h-[48px]">
           <SparkLine filled />
         </div>
       </article>
 
-      <article className="rounded-md border border-[#dfe3e8] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <p className="text-xs font-medium uppercase tracking-wide text-[#667085]">
-          Active users
-        </p>
-        <div className="mt-1 flex items-baseline gap-2">
-          <p className="text-2xl font-semibold leading-none text-[#182433]">
-            25,782
-          </p>
-          <span className="text-sm text-[#d63939]">-1%</span>
+      <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+            <BadgeCheck className="h-5 w-5" />
+          </div>
+
+          <span className="text-sm font-medium text-emerald-600">+5,2%</span>
         </div>
+
+        <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Tài khoản công dân số
+        </p>
+
+        <p className="mt-2 text-2xl font-semibold text-slate-800">16.219</p>
+
         <Gauge />
       </article>
     </div>
   );
 }
 
-function TrafficSummary() {
+function ServiceChart() {
+  const data = [
+    { label: "T2", online: 38, completed: 32 },
+    { label: "T3", online: 52, completed: 45 },
+    { label: "T4", online: 48, completed: 42 },
+    { label: "T5", online: 62, completed: 54 },
+    { label: "T6", online: 74, completed: 66 },
+    { label: "T7", online: 56, completed: 50 },
+    { label: "CN", online: 42, completed: 37 },
+  ];
+
   return (
-    <article className="rounded-md border border-[#dfe3e8] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <h3 className="text-base font-semibold text-[#182433]">Traffic summary</h3>
-      <div className="mt-6 grid h-[270px] grid-cols-[28px_1fr] gap-3">
-        <div className="flex flex-col justify-between pb-5 text-xs text-[#526071]">
-          <span>100</span>
+    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-slate-800">
+            Thống kê hồ sơ dịch vụ công
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Số lượng hồ sơ tiếp nhận và hoàn thành trong 7 ngày
+          </p>
+        </div>
+
+        <div className="flex gap-4 text-xs font-medium text-slate-500">
+          <span className="flex items-center gap-2">
+            <i className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+            Tiếp nhận
+          </span>
+
+          <span className="flex items-center gap-2">
+            <i className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            Hoàn thành
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-6 grid h-[270px] grid-cols-[30px_1fr] gap-3">
+        <div className="flex flex-col justify-between pb-7 text-xs text-slate-400">
           <span>80</span>
           <span>60</span>
           <span>40</span>
           <span>20</span>
+          <span>0</span>
         </div>
-        <div className="relative border-l border-dashed border-[#dfe3e8]">
-          <div className="absolute inset-0 grid grid-rows-5">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <span className="border-t border-dashed border-[#dfe3e8]" key={index} />
+
+        <div className="relative">
+          <div className="absolute inset-x-0 top-0 grid h-[240px] grid-rows-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <span
+                className="border-t border-dashed border-slate-200"
+                key={index}
+              />
             ))}
           </div>
-          <div className="absolute inset-x-3 bottom-0 flex h-full items-end gap-2">
-            {[
-              28, 40, 36, 32, 46, 58, 64, 57, 41, 35, 50, 72, 65, 70, 98, 56,
-            ].map((value, index) => (
-              <div className="flex h-full flex-1 items-end" key={`${value}-${index}`}>
-                <span
-                  className="block w-full rounded-t-sm bg-[#0d6efd]"
-                  style={{ height: `${Math.max(value - 7, 12)}%` }}
-                />
-                <span
-                  className="block w-full rounded-t-sm bg-[#2fb344]"
-                  style={{ height: `${Math.min(value, 100)}%` }}
-                />
+
+          <div className="absolute inset-x-0 bottom-0 flex h-[240px] items-end justify-around gap-3">
+            {data.map((item) => (
+              <div
+                className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+                key={item.label}
+              >
+                <div className="flex h-full items-end gap-1.5">
+                  <span
+                    className="block w-5 rounded-t-md bg-blue-600"
+                    style={{ height: `${item.online}%` }}
+                  />
+                  <span
+                    className="block w-5 rounded-t-md bg-emerald-500"
+                    style={{ height: `${item.completed}%` }}
+                  />
+                </div>
+
+                <span className="text-xs font-medium text-slate-500">
+                  {item.label}
+                </span>
               </div>
             ))}
           </div>
@@ -457,52 +534,173 @@ function TrafficSummary() {
   );
 }
 
-function WorldMap() {
-  const regions = [
-    "M42 74 65 58l29 8 12 19-20 22-32-2-20-13Z",
-    "M96 53 128 47l25 17-7 28-31 6-22-18Z",
-    "M145 99 177 91l29 20-13 30-39 4-23-20Z",
-    "M197 51 245 45l39 21-18 33-56 7-29-25Z",
-    "M278 87 342 74l51 23-19 36-76 3-39-25Z",
-    "M382 49 451 43l54 26-26 39-82 7-38-30Z",
-    "M504 102 565 91l49 22-18 34-73 7-39-24Z",
-    "M206 133 247 146l7 43-28 35-31-24-9-41Z",
-    "M431 127 492 139l20 53-43 28-52-18-16-47Z",
+function DigitalCitizenSummary() {
+  const rows = [
+    {
+      label: "Đã xác thực định danh",
+      value: "15.824",
+      percent: 85,
+      icon: ShieldCheck,
+      iconClassName: "bg-emerald-50 text-emerald-600",
+      progressClassName: "bg-emerald-500",
+    },
+    {
+      label: "Đã đăng ký tài khoản số",
+      value: "16.219",
+      percent: 87,
+      icon: UserCheck,
+      iconClassName: "bg-blue-50 text-blue-600",
+      progressClassName: "bg-blue-600",
+    },
+    {
+      label: "Đã sử dụng dịch vụ công",
+      value: "12.456",
+      percent: 67,
+      icon: FileCheck2,
+      iconClassName: "bg-violet-50 text-violet-600",
+      progressClassName: "bg-violet-500",
+    },
+    {
+      label: "Đã cài ứng dụng công dân số",
+      value: "10.982",
+      percent: 59,
+      icon: Activity,
+      iconClassName: "bg-amber-50 text-amber-600",
+      progressClassName: "bg-amber-500",
+    },
   ];
 
   return (
-    <svg className="h-full w-full" viewBox="0 0 650 260" preserveAspectRatio="xMidYMid meet">
-      <rect width="650" height="260" fill="white" />
-      <g fill="#e9eef5" stroke="#d8dee8" strokeWidth="1.2">
-        <path d="M32 67 72 42l62 12 37 42-31 53-76-4-43-43Z" />
-        <path d="M171 38 255 26l73 42-30 67-94 7-49-49Z" />
-        <path d="M337 58 432 23l89 29-3 62-88 27-74-21Z" />
-        <path d="M501 48 619 43l18 65-48 45-99-14-25-55Z" />
-        <path d="M198 146 272 159l18 57-44 41-61-34-12-48Z" />
-        <path d="M389 141 492 144l51 48-25 51-96-4-54-45Z" />
-      </g>
-      <g fill="#0d6efd" opacity="0.76">
-        {regions.map((path) => (
-          <path d={path} key={path} />
-        ))}
-      </g>
-      <g fill="#0d6efd">
-        <circle cx="87" cy="86" r="4" />
-        <circle cx="228" cy="82" r="4" />
-        <circle cx="418" cy="81" r="4" />
-        <circle cx="542" cy="126" r="4" />
-        <circle cx="226" cy="178" r="4" />
-      </g>
-    </svg>
+    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-base font-semibold text-slate-800">
+        Mức độ tham gia công dân số
+      </h3>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Thống kê trên tổng số 18.642 công dân
+      </p>
+
+      <div className="mt-5 space-y-5">
+        {rows.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <div key={item.label}>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${item.iconClassName}`}
+                  >
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+
+                  <p className="truncate text-sm font-medium text-slate-700">
+                    {item.label}
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-slate-800">
+                    {item.value}
+                  </p>
+                  <p className="text-xs text-slate-500">{item.percent}%</p>
+                </div>
+              </div>
+
+              <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className={`h-full rounded-full ${item.progressClassName}`}
+                  style={{ width: `${item.percent}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </article>
   );
 }
 
-function Locations() {
+function WardSummary() {
+  const wards = [
+    {
+      name: "Khu phố 1",
+      citizens: "3.842",
+      accounts: "3.468",
+      rate: "90%",
+    },
+    {
+      name: "Khu phố 2",
+      citizens: "3.126",
+      accounts: "2.734",
+      rate: "87%",
+    },
+    {
+      name: "Khu phố 3",
+      citizens: "4.254",
+      accounts: "3.625",
+      rate: "85%",
+    },
+    {
+      name: "Khu phố 4",
+      citizens: "3.980",
+      accounts: "3.354",
+      rate: "84%",
+    },
+    {
+      name: "Khu phố 5",
+      citizens: "3.440",
+      accounts: "3.038",
+      rate: "88%",
+    },
+  ];
+
   return (
-    <article className="rounded-md border border-[#dfe3e8] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <h3 className="text-base font-semibold text-[#182433]">Locations</h3>
-      <div className="mt-4 h-[284px] overflow-hidden">
-        <WorldMap />
+    <article className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5">
+        <div>
+          <h3 className="text-base font-semibold text-slate-800">
+            Thống kê theo khu phố
+          </h3>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Tiến độ triển khai tài khoản công dân số
+          </p>
+        </div>
+
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <MapPinned className="h-5 w-5" />
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-5 py-3 font-semibold">Địa bàn</th>
+              <th className="px-5 py-3 font-semibold">Công dân</th>
+              <th className="px-5 py-3 font-semibold">Tài khoản số</th>
+              <th className="px-5 py-3 text-right font-semibold">Tỷ lệ</th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-slate-100">
+            {wards.map((item) => (
+              <tr className="hover:bg-slate-50" key={item.name}>
+                <td className="px-5 py-4 font-medium text-slate-700">
+                  {item.name}
+                </td>
+                <td className="px-5 py-4 text-slate-600">{item.citizens}</td>
+                <td className="px-5 py-4 text-slate-600">{item.accounts}</td>
+                <td className="px-5 py-4 text-right">
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">
+                    {item.rate}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </article>
   );
@@ -511,20 +709,31 @@ function Locations() {
 export default function Dashboard() {
   return (
     <AppShell activeHref="/">
-      <main className="mx-auto max-w-[1288px] px-4 py-6">
+      <main className="mx-auto max-w-[1400px] px-4 py-6">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-[#667085]">
-              Overview
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+              Trung tâm điều hành
             </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#182433]">
-              Dashboard
+
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-800">
+              Dashboard Công dân số
             </h1>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Dữ liệu tổng hợp hoạt động chuyển đổi số tại xã/phường
+            </p>
           </div>
+
           <div className="flex items-center gap-2">
-            <button className="h-10 rounded-md border border-[#dfe3e8] bg-white px-4 text-sm font-medium text-[#182433] shadow-sm hover:bg-[#f8fafc]">
-              New view
+            <button
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+              type="button"
+            >
+              <Building2 className="h-4 w-4" />
+              UBND xã/phường
             </button>
+
             <CitizenAssistantChat />
           </div>
         </div>
@@ -544,19 +753,14 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <TrafficSummary />
-            <Locations />
+          <div className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
+            <ServiceChart />
+            <DigitalCitizenSummary />
           </div>
+
+          <WardSummary />
         </div>
       </main>
-
-      <button
-        aria-label="Customize"
-        className="fixed bottom-5 left-4 flex h-10 w-10 items-center justify-center rounded-md bg-[#0d6efd] text-white shadow-lg hover:bg-[#0b5ed7]"
-      >
-        <Sun className="h-5 w-5" strokeWidth={1.8} />
-      </button>
     </AppShell>
   );
 }

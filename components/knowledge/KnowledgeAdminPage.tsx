@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
   AlertCircle,
@@ -27,15 +27,19 @@ import {
   archiveKnowledge,
   createKnowledge,
   getKnowledgeItems,
+  getUnansweredQuestions,
   publishKnowledge,
 } from "@/services/knowledge.service";
 import type {
+  ChatbotUnansweredQuestion,
   CreateKnowledgePayload,
   KnowledgeItem,
   KnowledgeStatus,
+  UnansweredQuestionStatus,
 } from "@/services/knowledge.service";
 
 type StatusFilter = "ALL" | KnowledgeStatus;
+type UnansweredStatusFilter = "ALL" | UnansweredQuestionStatus;
 
 type Notice = {
   kind: "success" | "error" | "info";
@@ -58,6 +62,16 @@ const statusOptions: Array<{ value: StatusFilter; label: string }> = [
   { value: "ARCHIVED", label: "Lưu trữ" },
 ];
 
+const unansweredStatusOptions: Array<{
+  value: UnansweredStatusFilter;
+  label: string;
+}> = [
+  { value: "OPEN", label: "Chưa bổ sung" },
+  { value: "ALL", label: "Tất cả" },
+  { value: "RESOLVED", label: "Đã xử lý" },
+  { value: "IGNORED", label: "Bỏ qua" },
+];
+
 function formatDate(value: string) {
   const date = new Date(value);
 
@@ -69,6 +83,22 @@ function formatDate(value: string) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+  }).format(date);
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 }
 
@@ -84,6 +114,36 @@ function StatusBadge({ status }: { status: KnowledgeStatus }) {
     },
     ARCHIVED: {
       label: "Lưu trữ",
+      className: "border-slate-200 bg-slate-100 text-slate-600",
+    },
+  }[status];
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${config.className}`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {config.label}
+    </span>
+  );
+}
+
+function UnansweredStatusBadge({
+  status,
+}: {
+  status: UnansweredQuestionStatus;
+}) {
+  const config = {
+    OPEN: {
+      label: "Chưa bổ sung",
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+    },
+    RESOLVED: {
+      label: "Đã xử lý",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    },
+    IGNORED: {
+      label: "Bỏ qua",
       className: "border-slate-200 bg-slate-100 text-slate-600",
     },
   }[status];
@@ -134,11 +194,18 @@ function StatisticCard({
 }
 
 export default function KnowledgeAdminPage() {
+  const formRef = useRef<HTMLFormElement>(null);
   const [items, setItems] = useState<KnowledgeItem[]>([]);
+  const [unansweredQuestions, setUnansweredQuestions] = useState<
+    ChatbotUnansweredQuestion[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingUnanswered, setIsLoadingUnanswered] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [unansweredStatusFilter, setUnansweredStatusFilter] =
+    useState<UnansweredStatusFilter>("OPEN");
   const [notice, setNotice] = useState<Notice>({
     kind: "info",
     message: "Đang tải dữ liệu từ kho tri thức AI...",
@@ -177,6 +244,32 @@ export default function KnowledgeAdminPage() {
 
     void loadKnowledge();
 
+    async function loadUnansweredQuestions() {
+      try {
+        const result = await getUnansweredQuestions();
+
+        if (isMounted) {
+          setUnansweredQuestions(result.items);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setNotice({
+            kind: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Không tải được danh sách câu hỏi chatbot chưa trả lời.",
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingUnanswered(false);
+        }
+      }
+    }
+
+    void loadUnansweredQuestions();
+
     return () => {
       isMounted = false;
     };
@@ -207,6 +300,15 @@ export default function KnowledgeAdminPage() {
     });
   }, [items, query, statusFilter]);
 
+  const filteredUnansweredQuestions = useMemo(() => {
+    return unansweredQuestions.filter((question) => {
+      return (
+        unansweredStatusFilter === "ALL" ||
+        question.status === unansweredStatusFilter
+      );
+    });
+  }, [unansweredQuestions, unansweredStatusFilter]);
+
   const publishedCount = items.filter(
     (item) => item.status === "PUBLISHED",
   ).length;
@@ -214,6 +316,58 @@ export default function KnowledgeAdminPage() {
   const archivedCount = items.filter(
     (item) => item.status === "ARCHIVED",
   ).length;
+  const openUnansweredCount = unansweredQuestions.filter(
+    (question) => question.status === "OPEN",
+  ).length;
+
+  function fillFormFromUnansweredQuestion(
+    unansweredQuestion: ChatbotUnansweredQuestion,
+  ) {
+    const form = formRef.current;
+
+    if (!form) {
+      return;
+    }
+
+    const setFieldValue = (name: string, value: string) => {
+      const field = form.elements.namedItem(name);
+
+      if (
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement ||
+        field instanceof HTMLSelectElement
+      ) {
+        field.value = value;
+      }
+    };
+
+    setFieldValue("title", unansweredQuestion.question);
+    setFieldValue("category", "Hỏi đáp");
+    setFieldValue("sourceLabel", "Câu hỏi chatbot chưa trả lời");
+    setFieldValue(
+      "content",
+      `Câu hỏi người dân: ${unansweredQuestion.question}\n\nCâu trả lời bổ sung:\n`,
+    );
+    setFieldValue(
+      "keywords",
+      unansweredQuestion.normalizedQuestion
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 6)
+        .join(", "),
+    );
+
+    form.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    setNotice({
+      kind: "info",
+      message:
+        "Đã đưa câu hỏi chưa trả lời vào form. Hãy bổ sung câu trả lời rồi lưu vào kho AI.",
+    });
+  }
 
   async function submitKnowledge(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -340,7 +494,7 @@ export default function KnowledgeAdminPage() {
       </section>
 
       <section className="mx-auto mt-5 max-w-[1440px] px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatisticCard
             description="Tổng số nội dung trong toàn bộ kho dữ liệu."
             icon={<Layers3 className="h-5 w-5" />}
@@ -369,6 +523,13 @@ export default function KnowledgeAdminPage() {
             title="Lưu trữ"
             value={archivedCount}
           />
+          <StatisticCard
+            description="Câu hỏi người dân chatbot chưa có dữ liệu để trả lời."
+            icon={<AlertCircle className="h-5 w-5" />}
+            iconClassName="bg-rose-50 text-rose-600"
+            title="Chờ bổ sung"
+            value={openUnansweredCount}
+          />
         </div>
       </section>
 
@@ -377,6 +538,7 @@ export default function KnowledgeAdminPage() {
           className="h-fit rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-5"
           id="create-knowledge"
           onSubmit={submitKnowledge}
+          ref={formRef}
         >
           <div className="border-b border-slate-100 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-600">
@@ -491,6 +653,123 @@ export default function KnowledgeAdminPage() {
             {noticeIcon}
             <span>{notice.message}</span>
           </div>
+
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-rose-600">
+                    Chatbot cần dữ liệu
+                  </p>
+                  <h2 className="mt-1 text-xl font-bold text-slate-900">
+                    Câu hỏi chưa có dữ liệu trả lời
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Có {openUnansweredCount} câu hỏi đang chờ admin bổ sung tri
+                    thức cho AI.
+                  </p>
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {unansweredStatusOptions.map((option) => {
+                    const active = unansweredStatusFilter === option.value;
+
+                    return (
+                      <button
+                        className={`whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
+                          active
+                            ? "border-rose-600 bg-rose-600 text-white shadow-sm"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                        }`}
+                        key={option.value}
+                        onClick={() => setUnansweredStatusFilter(option.value)}
+                        type="button"
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[840px] border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                    <th className="px-5 py-3.5">Câu hỏi</th>
+                    <th className="px-5 py-3.5">Số lần hỏi</th>
+                    <th className="px-5 py-3.5">Lần hỏi gần nhất</th>
+                    <th className="px-5 py-3.5">Trạng thái</th>
+                    <th className="px-5 py-3.5 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUnansweredQuestions.map((question) => (
+                    <tr
+                      className="group border-b border-slate-100 align-top transition last:border-0 hover:bg-rose-50/30"
+                      key={question.id}
+                    >
+                      <td className="px-5 py-4">
+                        <p className="max-w-[460px] font-semibold leading-6 text-slate-800">
+                          {question.question}
+                        </p>
+                        <p className="mt-1 max-w-[460px] text-xs leading-5 text-slate-500">
+                          {question.normalizedQuestion}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-rose-50 px-2 text-sm font-bold text-rose-700">
+                          {question.askCount}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-500">
+                        {formatDateTime(question.lastAskedAt)}
+                      </td>
+                      <td className="px-5 py-4">
+                        <UnansweredStatusBadge status={question.status} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end">
+                          <button
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={question.status !== "OPEN"}
+                            onClick={() =>
+                              fillFormFromUnansweredQuestion(question)
+                            }
+                            type="button"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Tạo tri thức
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {isLoadingUnanswered ? (
+              <div className="flex items-center justify-center gap-2 px-5 py-8 text-sm font-medium text-slate-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Đang tải câu hỏi chatbot chưa trả lời...
+              </div>
+            ) : null}
+
+            {!isLoadingUnanswered &&
+            filteredUnansweredQuestions.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <p className="font-semibold text-slate-800">
+                  Không có câu hỏi phù hợp
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Khi chatbot gặp câu hỏi chưa có dữ liệu, câu hỏi sẽ xuất hiện
+                  ở đây để admin bổ sung tri thức.
+                </p>
+              </div>
+            ) : null}
+          </section>
 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-5">
