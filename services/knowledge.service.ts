@@ -70,9 +70,10 @@ type UnansweredQuestionsApiResponse =
     };
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
+  process.env.NEXT_PUBLIC_KNOWLEDGE_API_URL?.trim().replace(/\/$/, "") ??
+  "/api/backend";
 
-  const UNANSWERED_QUESTIONS_PATH =
+const UNANSWERED_QUESTIONS_PATH =
   process.env.NEXT_PUBLIC_UNANSWERED_QUESTIONS_PATH ??
   "/chat/unanswered-questions";
 
