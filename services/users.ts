@@ -31,6 +31,9 @@ export type ApiResponse<T> = {
     username: string;
     zalo_id: string;
     avatar?: string;
+    image?: string;
+    url?: string;
+    role?: string;
     createdAt?: string;
     updatedAt?: string;
   
@@ -41,6 +44,10 @@ export type ApiResponse<T> = {
     username: string;
     zalo_id: string;
     avatar?: string;
+    image?: string;
+    url?: string;
+    role?: string;
+    password?: string;
   
     [key: string]: unknown;
   };

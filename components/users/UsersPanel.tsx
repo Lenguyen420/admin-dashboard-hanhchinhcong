@@ -24,6 +24,13 @@ function getString(formData: FormData, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function getStringValue(value: unknown) {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+
+  return "";
+}
+
 function cleanPayload<T extends Record<string, unknown>>(payload: T): T {
   return Object.fromEntries(
     Object.entries(payload).filter(([, value]) => {
@@ -88,7 +95,11 @@ export default function UsersPanel() {
   }, []);
 
   useEffect(() => {
-    void loadUsers();
+    const timeoutId = window.setTimeout(() => {
+      void loadUsers();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadUsers]);
 
   const filteredUsers = useMemo(() => {
@@ -113,6 +124,10 @@ export default function UsersPanel() {
       username: getString(formData, "username"),
       zalo_id: getString(formData, "zalo_id"),
       avatar: getString(formData, "avatar"),
+      image: getString(formData, "image"),
+      url: getString(formData, "url"),
+      role: getString(formData, "role"),
+      password: getString(formData, "password"),
     });
 
     setIsSaving(true);
@@ -156,6 +171,10 @@ export default function UsersPanel() {
       username: getString(formData, "username"),
       zalo_id: getString(formData, "zalo_id"),
       avatar: getString(formData, "avatar"),
+      image: getString(formData, "image"),
+      url: getString(formData, "url"),
+      role: getString(formData, "role"),
+      password: getString(formData, "password"),
     });
 
     setIsSaving(true);
@@ -338,6 +357,8 @@ export default function UsersPanel() {
                   <th className="px-4 py-4 font-bold">ID</th>
                   <th className="px-4 py-4 font-bold">Username</th>
                   <th className="px-4 py-4 font-bold">Zalo ID</th>
+                  <th className="px-4 py-4 font-bold">Role</th>
+                  <th className="px-4 py-4 font-bold">URL</th>
                   <th className="px-4 py-4 font-bold">Ngày tạo</th>
                   <th className="px-4 py-4 font-bold">Cập nhật</th>
                   <th className="rounded-r-xl px-4 py-4 text-right font-bold">
@@ -355,11 +376,11 @@ export default function UsersPanel() {
                       >
                         <td className="border-b border-slate-100 px-4 py-4">
                           <div className="h-11 w-11 overflow-hidden rounded-full bg-slate-100">
-                            {user.avatar ? (
+                            {user.avatar || user.image ? (
                               <img
                                 alt={user.username ?? "Avatar"}
                                 className="h-full w-full object-cover"
-                                src={user.avatar}
+                                src={user.avatar || user.image}
                               />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-xs font-bold text-slate-500">
@@ -384,6 +405,27 @@ export default function UsersPanel() {
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4">
+                          <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">
+                            {getStringValue(user.role) || "-"}
+                          </span>
+                        </td>
+
+                        <td className="max-w-[220px] border-b border-slate-100 px-4 py-4">
+                          {getStringValue(user.url) ? (
+                            <a
+                              href={getStringValue(user.url)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="line-clamp-2 break-all text-xs font-semibold text-blue-700 hover:text-blue-900"
+                            >
+                              {getStringValue(user.url)}
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+
+                        <td className="border-b border-slate-100 px-4 py-4">
                           {formatDate(user.createdAt)}
                         </td>
 
@@ -393,6 +435,14 @@ export default function UsersPanel() {
 
                         <td className="border-b border-slate-100 px-4 py-4">
                           <div className="flex items-center justify-end gap-2">
+                            <button
+                              className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-50"
+                              onClick={() => void openDetail(user)}
+                              type="button"
+                            >
+                              Chi tiết
+                            </button>
+
                             <button
                               className="rounded-lg border border-yellow-200 bg-white px-3 py-2 text-xs font-bold text-yellow-700 transition hover:bg-yellow-50"
                               onClick={() => setEditingUser(user)}
@@ -499,26 +549,26 @@ function UserFormModal({
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  console.log("user", user);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
       <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
         <div className="border-b border-slate-100 px-6 py-4">
           <h3 className="text-lg font-extrabold text-blue-950">{title}</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Nhập thông tin username, zalo_id và avatar.
+            Nhập thông tin theo payload API: username, zalo_id, avatar, image,
+            url, role và password.
           </p>
         </div>
 
         <form className="space-y-4 p-6" onSubmit={onSubmit}>
-          <div className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <label className="block">
               <span className="text-sm font-bold text-slate-700">Username</span>
               <input
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
                 defaultValue={user?.username ?? ""}
                 name="username"
-                placeholder="tran_thi_b"
+                placeholder="Nguyễn Văn A"
                 required
               />
             </label>
@@ -529,7 +579,7 @@ function UserFormModal({
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
                 defaultValue={user?.zalo_id ?? ""}
                 name="zalo_id"
-                placeholder="zalo_seed_002"
+                placeholder="zalo_123456"
               />
             </label>
 
@@ -539,7 +589,52 @@ function UserFormModal({
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
                 defaultValue={user?.avatar ?? ""}
                 name="avatar"
-                placeholder="/assets/avatar-2.png"
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Image</span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={user?.image ?? ""}
+                name="image"
+                placeholder="https://example.com/image.jpg"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">URL</span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={user?.url ?? ""}
+                name="url"
+                placeholder="https://example.com"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Role</span>
+              <select
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={user?.role ?? "USER"}
+                name="role"
+              >
+                <option value="USER">USER</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+            </label>
+
+            <label className="block md:col-span-2">
+              <span className="text-sm font-bold text-slate-700">
+                Password {!user ? <span className="text-red-600">*</span> : null}
+              </span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                name="password"
+                placeholder={user ? "Để trống nếu không đổi mật khẩu" : "admin123"}
+                required={!user}
+                type="password"
               />
             </label>
           </div>
