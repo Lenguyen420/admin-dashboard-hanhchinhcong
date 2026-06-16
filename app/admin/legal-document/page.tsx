@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import LegalDocumentsAdminPage from "@/components/legal-documents/LegalDocumentsAdminPage";
+import LegalDocumentsAdminPage from "@/components/legal-document/LegalDocumentsAdminPage";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <AppShell activeHref="/admin/document">
+    <AppShell activeHref="/admin/legal-document">
       <LegalDocumentsAdminPage />
     </AppShell>
   );
