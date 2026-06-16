@@ -10,41 +10,50 @@ import {
   updateIndustrialPark,
   type IndustrialPark,
 } from "@/services/industrial-parks";
+import LocationSelectFields from "@/components/location/LocationSelectFields";
 
 type IndustrialParkForm = {
   name: string;
   description: string;
+  introduction: string;
   address: string;
   province: string;
   district: string;
   ward: string;
-  area: string;
-  occupancyRate: string;
-  investor: string;
+  establishedAt: string;
+  mapUrl: string;
+  totalArea: string;
+  usedArea: string;
+  contactPerson: string;
   phone: string;
   email: string;
   website: string;
   imageUrl: string;
   logoUrl: string;
   status: string;
+  attachmentUrls: string;
 };
 
 const initialForm: IndustrialParkForm = {
   name: "",
   description: "",
+  introduction: "",
   address: "",
   province: "",
   district: "",
   ward: "",
-  area: "",
-  occupancyRate: "",
-  investor: "",
+  establishedAt: "",
+  mapUrl: "",
+  totalArea: "",
+  usedArea: "",
+  contactPerson: "",
   phone: "",
   email: "",
   website: "",
   imageUrl: "",
   logoUrl: "",
   status: "",
+  attachmentUrls: "",
 };
 
 function formatDateTime(value?: string) {
@@ -78,11 +87,41 @@ function parseOptionalNumber(value: string) {
   return Number.isNaN(number) ? undefined : number;
 }
 
+function formatDateInput(value?: string) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function parseAttachmentUrls(value: string) {
+  return value
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function getAreaText(park: IndustrialPark) {
-  return getText(park.area) || "-";
+  return getText(park.totalArea) || getText(park.area) || "-";
+}
+
+function getUsedAreaText(park: IndustrialPark) {
+  return getText(park.usedArea) || "-";
 }
 
 function getOccupancyRateText(park: IndustrialPark) {
+  const totalArea = Number(getText(park.totalArea) || getText(park.area));
+  const usedArea = Number(getText(park.usedArea));
+
+  if (!Number.isNaN(totalArea) && totalArea > 0 && !Number.isNaN(usedArea)) {
+    return `${((usedArea / totalArea) * 100).toFixed(1)}%`;
+  }
+
   const value = getText(park.occupancyRate);
 
   if (!value) {
@@ -90,6 +129,41 @@ function getOccupancyRateText(park: IndustrialPark) {
   }
 
   return value.includes("%") ? value : `${value}%`;
+}
+
+function getContactPersonText(park: IndustrialPark) {
+  return getText(park.contactPerson) || getText(park.investor) || "-";
+}
+
+function getAttachmentCount(park: IndustrialPark) {
+  return park.attachments?.length ?? park.attachmentUrls?.length ?? 0;
+}
+
+function getAttachmentUrl(path?: string) {
+  if (!path) return "";
+
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
+  const apiUrl =
+    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
+    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
+    "";
+
+  return `${apiUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
+function isActivePark(park: IndustrialPark) {
+  const status = getText(park.status).toLowerCase();
+
+  return [
+    "active",
+    "published",
+    "1",
+    "dang hoat dong",
+    "đang hoạt động",
+  ].includes(status);
 }
 
 function getLocationText(park: IndustrialPark) {
@@ -121,11 +195,15 @@ export default function IndustrialParksAdminPage() {
         park.id,
         park.name,
         park.description,
+        park.introduction,
         park.address,
         park.province,
         park.district,
         park.ward,
+        park.establishedAt,
+        park.mapUrl,
         park.investor,
+        park.contactPerson,
         park.phone,
         park.email,
         park.website,
@@ -138,24 +216,28 @@ export default function IndustrialParksAdminPage() {
       return content.includes(searchText);
     });
   }, [industrialParks, keyword]);
-
   const activeCount = useMemo(() => {
-    return industrialParks.filter((park) => {
-      const status = getText(park.status).toLowerCase();
-
-      return ["active", "published", "1", "hoạt động"].includes(status);
-    }).length;
+    return industrialParks.filter(isActivePark).length;
   }, [industrialParks]);
 
-  const parksWithImageCount = useMemo(() => {
+  const parksWithAttachmentCount = useMemo(() => {
     return industrialParks.filter((park) =>
-      Boolean(getText(park.imageUrl) || getText(park.logoUrl)),
+      getAttachmentCount(park) > 0,
     ).length;
   }, [industrialParks]);
 
   const averageOccupancyRate = useMemo(() => {
     const rates = industrialParks
-      .map((park) => Number(getText(park.occupancyRate).replace("%", "")))
+      .map((park) => {
+        const totalArea = Number(getText(park.totalArea) || getText(park.area));
+        const usedArea = Number(getText(park.usedArea));
+
+        if (!Number.isNaN(totalArea) && totalArea > 0 && !Number.isNaN(usedArea)) {
+          return (usedArea / totalArea) * 100;
+        }
+
+        return Number(getText(park.occupancyRate).replace("%", ""));
+      })
       .filter((rate) => !Number.isNaN(rate) && rate >= 0);
 
     if (rates.length === 0) {
@@ -186,7 +268,11 @@ export default function IndustrialParksAdminPage() {
   };
 
   useEffect(() => {
-    void loadIndustrialParks();
+    const timeoutId = window.setTimeout(() => {
+      void loadIndustrialParks();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   const handleChange = (field: keyof IndustrialParkForm, value: string) => {
@@ -207,19 +293,25 @@ export default function IndustrialParksAdminPage() {
     setForm({
       name: getText(park.name),
       description: getText(park.description),
+      introduction: getText(park.introduction),
       address: getText(park.address),
       province: getText(park.province),
       district: getText(park.district),
       ward: getText(park.ward),
-      area: getText(park.area),
-      occupancyRate: getText(park.occupancyRate).replace("%", ""),
-      investor: getText(park.investor),
+      establishedAt: formatDateInput(park.establishedAt),
+      mapUrl: getText(park.mapUrl),
+      totalArea: getText(park.totalArea) || getText(park.area),
+      usedArea: getText(park.usedArea),
+      contactPerson: getText(park.contactPerson) || getText(park.investor),
       phone: getText(park.phone),
       email: getText(park.email),
       website: getText(park.website),
       imageUrl: getText(park.imageUrl),
       logoUrl: getText(park.logoUrl),
       status: getText(park.status),
+      attachmentUrls: (park.attachmentUrls ?? park.attachments?.map((item) => item.url ?? "") ?? [])
+        .filter(Boolean)
+        .join("\n"),
     });
   };
 
@@ -236,19 +328,27 @@ export default function IndustrialParksAdminPage() {
     const payload = {
       name: form.name.trim(),
       description: form.description.trim() || undefined,
+      introduction: form.introduction.trim() || undefined,
       address: form.address.trim() || undefined,
       province: form.province.trim() || undefined,
       district: form.district.trim() || undefined,
       ward: form.ward.trim() || undefined,
-      area: parseOptionalNumber(form.area),
-      occupancyRate: parseOptionalNumber(form.occupancyRate),
-      investor: form.investor.trim() || undefined,
+      establishedAt: form.establishedAt
+        ? new Date(form.establishedAt).toISOString()
+        : undefined,
+      mapUrl: form.mapUrl.trim() || undefined,
+      totalArea: parseOptionalNumber(form.totalArea),
+      usedArea: parseOptionalNumber(form.usedArea),
+      contactPerson: form.contactPerson.trim() || undefined,
       phone: form.phone.trim() || undefined,
       email: form.email.trim() || undefined,
       website: form.website.trim() || undefined,
       imageUrl: form.imageUrl.trim() || undefined,
       logoUrl: form.logoUrl.trim() || undefined,
       status: form.status.trim() || undefined,
+      attachmentUrls: parseAttachmentUrls(form.attachmentUrls).length
+        ? parseAttachmentUrls(form.attachmentUrls)
+        : undefined,
     };
 
     try {
@@ -361,13 +461,13 @@ export default function IndustrialParksAdminPage() {
 
           <div className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-700">
-              Có hình ảnh
+              Có tài liệu
             </p>
             <p className="mt-3 text-3xl font-extrabold text-blue-950">
-              {parksWithImageCount}
+              {parksWithAttachmentCount}
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              Khu đã có ảnh hoặc logo
+              Khu đã có tệp đính kèm
             </p>
           </div>
         </section>
@@ -407,48 +507,49 @@ export default function IndustrialParksAdminPage() {
 
             <div>
               <label className="text-sm font-bold text-slate-700">
-                Nhà đầu tư
+                Người liên hệ
               </label>
 
               <input
-                value={form.investor}
+                value={form.contactPerson}
                 onChange={(event) =>
-                  handleChange("investor", event.target.value)
+                  handleChange("contactPerson", event.target.value)
                 }
-                placeholder="Nhập tên nhà đầu tư"
+                placeholder="Nhập người liên hệ"
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
               />
             </div>
 
             <div>
               <label className="text-sm font-bold text-slate-700">
-                Diện tích
+                Tổng diện tích
               </label>
 
               <input
                 type="number"
                 min={0}
-                value={form.area}
-                onChange={(event) => handleChange("area", event.target.value)}
-                placeholder="VD: 250"
+                value={form.totalArea}
+                onChange={(event) =>
+                  handleChange("totalArea", event.target.value)
+                }
+                placeholder="VD: 300"
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
               />
             </div>
 
             <div>
               <label className="text-sm font-bold text-slate-700">
-                Tỷ lệ lấp đầy (%)
+                Diện tích đã sử dụng
               </label>
 
               <input
                 type="number"
                 min={0}
-                max={100}
-                value={form.occupancyRate}
+                value={form.usedArea}
                 onChange={(event) =>
-                  handleChange("occupancyRate", event.target.value)
+                  handleChange("usedArea", event.target.value)
                 }
-                placeholder="VD: 75"
+                placeholder="VD: 180"
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
               />
             </div>
@@ -505,6 +606,34 @@ export default function IndustrialParksAdminPage() {
               />
             </div>
 
+            <div>
+              <label className="text-sm font-bold text-slate-700">
+                Ngày thành lập
+              </label>
+
+              <input
+                type="date"
+                value={form.establishedAt}
+                onChange={(event) =>
+                  handleChange("establishedAt", event.target.value)
+                }
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-slate-700">
+                Bản đồ
+              </label>
+
+              <input
+                value={form.mapUrl}
+                onChange={(event) => handleChange("mapUrl", event.target.value)}
+                placeholder="Nhập URL Google Maps"
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              />
+            </div>
+
             <div className="lg:col-span-2">
               <label className="text-sm font-bold text-slate-700">
                 Địa chỉ
@@ -520,60 +649,41 @@ export default function IndustrialParksAdminPage() {
               />
             </div>
 
-            <div>
+            <LocationSelectFields
+              province={form.province}
+              ward={form.ward}
+              onProvinceChange={(value) => handleChange("province", value)}
+              onWardChange={(value) => handleChange("ward", value)}
+            />
+
+            <div className="lg:col-span-2">
               <label className="text-sm font-bold text-slate-700">
-                Tỉnh/Thành
+                URL tài liệu đính kèm
               </label>
 
-              <input
-                value={form.province}
+              <textarea
+                value={form.attachmentUrls}
                 onChange={(event) =>
-                  handleChange("province", event.target.value)
+                  handleChange("attachmentUrls", event.target.value)
                 }
-                placeholder="Nhập tỉnh/thành"
+                placeholder="Mỗi URL một dòng"
+                rows={3}
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
               />
             </div>
 
-            <div>
+            <div className="lg:col-span-2">
               <label className="text-sm font-bold text-slate-700">
-                Xã/Phường
+                Giới thiệu
               </label>
 
-              <input
-                value={form.ward}
-                onChange={(event) => handleChange("ward", event.target.value)}
-                placeholder="Nhập xã/phường"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-slate-700">
-                URL logo
-              </label>
-
-              <input
-                value={form.logoUrl}
+              <textarea
+                value={form.introduction}
                 onChange={(event) =>
-                  handleChange("logoUrl", event.target.value)
+                  handleChange("introduction", event.target.value)
                 }
-                placeholder="Nhập URL logo"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-slate-700">
-                URL hình ảnh
-              </label>
-
-              <input
-                value={form.imageUrl}
-                onChange={(event) =>
-                  handleChange("imageUrl", event.target.value)
-                }
-                placeholder="Nhập URL hình ảnh"
+                placeholder="Nhập phần giới thiệu khu công nghiệp"
+                rows={4}
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
               />
             </div>
@@ -638,7 +748,7 @@ export default function IndustrialParksAdminPage() {
             <input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
-              placeholder="Tìm tên khu, địa chỉ, nhà đầu tư..."
+              placeholder="Tìm tên khu, địa chỉ, người liên hệ..."
               className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100 lg:w-96"
             />
           </div>
@@ -648,14 +758,14 @@ export default function IndustrialParksAdminPage() {
               <thead>
                 <tr className="bg-blue-950 text-white">
                   <th className="rounded-l-xl px-4 py-4 font-bold">ID</th>
-                  <th className="px-4 py-4 font-bold">Ảnh</th>
+                  <th className="px-4 py-4 font-bold">Tài liệu</th>
                   <th className="px-4 py-4 font-bold">Tên khu</th>
                   <th className="px-4 py-4 font-bold">Địa chỉ</th>
                   <th className="px-4 py-4 font-bold">Diện tích</th>
-                  <th className="px-4 py-4 font-bold">Lấp đầy</th>
-                  <th className="px-4 py-4 font-bold">Nhà đầu tư</th>
+                  <th className="px-4 py-4 font-bold">Sử dụng</th>
+                  <th className="px-4 py-4 font-bold">Liên hệ</th>
                   <th className="px-4 py-4 font-bold">Trạng thái</th>
-                  <th className="px-4 py-4 font-bold">Ngày tạo</th>
+                  <th className="px-4 py-4 font-bold">Thành lập</th>
                   <th className="rounded-r-xl px-4 py-4 font-bold">Thao tác</th>
                 </tr>
               </thead>
@@ -684,7 +794,17 @@ export default function IndustrialParksAdminPage() {
                 ) : null}
 
                 {!loading
-                  ? filteredIndustrialParks.map((park) => (
+                  ? filteredIndustrialParks.map((park) => {
+                      const firstAttachment =
+                        park.attachments?.[0] ??
+                        (park.attachmentUrls?.[0]
+                          ? { url: park.attachmentUrls[0] }
+                          : undefined);
+                      const firstAttachmentUrl = getAttachmentUrl(
+                        firstAttachment?.url,
+                      );
+
+                      return (
                       <tr
                         key={park.id}
                         className="text-slate-700 transition hover:bg-blue-50/60"
@@ -693,36 +813,57 @@ export default function IndustrialParksAdminPage() {
                           <span className="block truncate">{park.id}</span>
                         </td>
 
-                        <td className="border-b border-slate-100 px-4 py-4">
-                          {park.imageUrl || park.logoUrl ? (
-                            <img
-                              src={park.imageUrl || park.logoUrl}
-                              alt={getText(park.name)}
-                              className="h-14 w-14 rounded-xl border border-slate-200 object-cover"
-                            />
+                        <td className="min-w-[160px] border-b border-slate-100 px-4 py-4">
+                          {firstAttachmentUrl ? (
+                            <a
+                              href={firstAttachmentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-100"
+                            >
+                              {getText(firstAttachment?.fileName) || "Mở tài liệu"}
+                            </a>
                           ) : (
-                            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-xs text-slate-400">
-                              No img
-                            </div>
+                            <span className="text-xs text-slate-400">Chưa có</span>
                           )}
+
+                          {getAttachmentCount(park) > 1 ? (
+                            <div className="mt-1 text-xs text-slate-500">
+                              +{getAttachmentCount(park) - 1} tệp khác
+                            </div>
+                          ) : null}
                         </td>
 
-                        <td className="min-w-[260px] border-b border-slate-100 px-4 py-4">
+                        <td className="min-w-[280px] border-b border-slate-100 px-4 py-4">
                           <div className="font-bold text-blue-950">
                             {getText(park.name) || "-"}
                           </div>
 
                           <div className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                            {getText(park.description)}
+                            {getText(park.introduction) ||
+                              getText(park.description)}
                           </div>
                         </td>
 
-                        <td className="min-w-[260px] border-b border-slate-100 px-4 py-4 text-slate-600">
-                          {getLocationText(park)}
+                        <td className="min-w-[280px] border-b border-slate-100 px-4 py-4 text-slate-600">
+                          <div>{getLocationText(park)}</div>
+                          {park.mapUrl ? (
+                            <a
+                              href={getText(park.mapUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-1 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900"
+                            >
+                              Xem bản đồ
+                            </a>
+                          ) : null}
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4 font-bold text-blue-950">
-                          {getAreaText(park)}
+                          <div>{getAreaText(park)}</div>
+                          <div className="mt-1 text-xs font-medium text-slate-500">
+                            Đã dùng: {getUsedAreaText(park)}
+                          </div>
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4">
@@ -731,8 +872,23 @@ export default function IndustrialParksAdminPage() {
                           </span>
                         </td>
 
-                        <td className="border-b border-slate-100 px-4 py-4 text-slate-700">
-                          {getText(park.investor) || "-"}
+                        <td className="min-w-[190px] border-b border-slate-100 px-4 py-4 text-slate-700">
+                          <div className="font-medium">
+                            {getContactPersonText(park)}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {getText(park.phone)}
+                          </div>
+                          {park.website ? (
+                            <a
+                              href={getText(park.website)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-1 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900"
+                            >
+                              Website
+                            </a>
+                          ) : null}
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4">
@@ -742,7 +898,7 @@ export default function IndustrialParksAdminPage() {
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4 text-slate-500">
-                          {formatDateTime(park.createdAt)}
+                          {formatDateTime(park.establishedAt)}
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4">
@@ -765,7 +921,8 @@ export default function IndustrialParksAdminPage() {
                           </div>
                         </td>
                       </tr>
-                    ))
+                    );
+                    })
                   : null}
               </tbody>
             </table>

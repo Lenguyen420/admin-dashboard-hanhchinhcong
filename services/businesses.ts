@@ -48,7 +48,26 @@ export type ApiResponse<T> = {
     province?: string;
     district?: string;
     ward?: string;
+    addresses?: BusinessAddress[];
   
+    [key: string]: unknown;
+  };
+
+  export type BusinessAddress = {
+    id?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    tableName?: string;
+    valueId?: string;
+    label?: string;
+    address?: string;
+    provinceCode?: string;
+    wardCode?: string;
+    phone?: string;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+    isPrimary?: boolean;
+    order?: number;
     [key: string]: unknown;
   };
   
@@ -70,6 +89,7 @@ export type ApiResponse<T> = {
     province?: string;
     district?: string;
     ward?: string;
+    addresses?: BusinessAddress[];
   
     [key: string]: unknown;
   };

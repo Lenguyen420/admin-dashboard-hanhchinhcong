@@ -40,6 +40,7 @@ export type ApiResponse<T> = {
     phone?: string;
     email?: string;
     website?: string;
+    websiteUrl?: string;
   
     address?: string;
     province?: string;
@@ -63,6 +64,7 @@ export type ApiResponse<T> = {
     phone?: string;
     email?: string;
     website?: string;
+    websiteUrl?: string;
   
     address?: string;
     province?: string;

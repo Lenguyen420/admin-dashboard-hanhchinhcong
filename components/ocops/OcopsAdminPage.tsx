@@ -83,6 +83,12 @@ function getTypeName(ocop: Ocop) {
   );
 }
 
+function getTypeDescription(ocop: Ocop) {
+  const typeRecord = asRecord(ocop.type) ?? asRecord(ocop.ocopType);
+
+  return getText(typeRecord?.description) || getText(typeRecord?.group);
+}
+
 function getStoreName(ocop: Ocop) {
   return (
     getObjectName(ocop.store) ||
@@ -92,6 +98,24 @@ function getStoreName(ocop: Ocop) {
     getText(ocop.storeId) ||
     "-"
   );
+}
+
+function getStoreAddress(ocop: Ocop) {
+  const storeRecord = asRecord(ocop.store);
+
+  return getText(storeRecord?.address) || getText(ocop.address);
+}
+
+function getStorePhone(ocop: Ocop) {
+  const storeRecord = asRecord(ocop.store);
+
+  return getText(storeRecord?.phone) || getText(ocop.phone);
+}
+
+function getStoreWebsite(ocop: Ocop) {
+  const storeRecord = asRecord(ocop.store);
+
+  return getText(storeRecord?.websiteUrl) || getText(ocop.link);
 }
 
 function getStar(ocop: Ocop) {
@@ -127,7 +151,11 @@ export default function OcopsAdminPage() {
         ocop.title,
         ocop.description,
         getTypeName(ocop),
+        getTypeDescription(ocop),
         getStoreName(ocop),
+        getStoreAddress(ocop),
+        getStorePhone(ocop),
+        getStoreWebsite(ocop),
         getStar(ocop),
       ]
         .filter(Boolean)
@@ -137,6 +165,7 @@ export default function OcopsAdminPage() {
       return content.includes(searchText);
     });
   }, [ocops, keyword]);
+
   const averageStar = useMemo(() => {
     const stars = ocops
       .map((ocop) => Number(getStar(ocop)))
@@ -151,8 +180,8 @@ export default function OcopsAdminPage() {
     return (total / stars.length).toFixed(1);
   }, [ocops]);
 
-  const productWithImageCount = useMemo(() => {
-    return ocops.filter((ocop) => Boolean(getText(ocop.imageUrl))).length;
+  const productWithStoreCount = useMemo(() => {
+    return ocops.filter((ocop) => getStoreName(ocop) !== "-").length;
   }, [ocops]);
   const loadOcops = async () => {
     setLoading(true);
@@ -183,8 +212,12 @@ export default function OcopsAdminPage() {
   };
 
   useEffect(() => {
-    void loadOcops();
-    void loadOcopTypes();
+    const timeoutId = window.setTimeout(() => {
+      void loadOcops();
+      void loadOcopTypes();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   const handleChange = (field: keyof OcopForm, value: string) => {
@@ -201,16 +234,18 @@ export default function OcopsAdminPage() {
 
   const handleEdit = (ocop: Ocop) => {
     setEditingId(ocop.id);
+    const typeRecord = asRecord(ocop.type) ?? asRecord(ocop.ocopType);
+    const storeRecord = asRecord(ocop.store);
 
     setForm({
       name: getText(ocop.name) || getText(ocop.title),
       description: getText(ocop.description),
       star: getText(ocop.star) || getText(ocop.stars) || getText(ocop.rating),
-      typeId: getText(ocop.typeId),
-      storeId: getText(ocop.storeId),
+      typeId: getText(ocop.typeId) || getText(typeRecord?.id),
+      storeId: getText(ocop.storeId) || getText(storeRecord?.id),
       imageUrl: getText(ocop.imageUrl),
       price: getText(ocop.price),
-      link: getText(ocop.link),
+      link: getText(ocop.link) || getStoreWebsite(ocop),
     });
   };
 
@@ -345,13 +380,13 @@ export default function OcopsAdminPage() {
 
           <div className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-700">
-              Có hình ảnh
+              Có cửa hàng
             </p>
             <p className="mt-3 text-3xl font-extrabold text-blue-950">
-              {productWithImageCount}
+              {productWithStoreCount}
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              Sản phẩm đã có ảnh hiển thị
+              Sản phẩm đã liên kết cửa hàng
             </p>
           </div>
         </section>
@@ -425,23 +460,6 @@ export default function OcopsAdminPage() {
 
             <div>
               <label className="text-sm font-bold text-slate-700">
-                Điểm đánh giá
-              </label>
-
-              <input
-                type="number"
-                min={0}
-                max={5}
-                step={0.5}
-                value={form.star}
-                onChange={(event) => handleChange("star", event.target.value)}
-                placeholder="0 - 5"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-slate-700">
                 Giá sản phẩm
               </label>
 
@@ -468,7 +486,7 @@ export default function OcopsAdminPage() {
               />
             </div>
 
-            <div className="lg:col-span-2">
+            <div>
               <label className="text-sm font-bold text-slate-700">
                 Link sản phẩm
               </label>
@@ -622,10 +640,37 @@ export default function OcopsAdminPage() {
                           <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">
                             {getTypeName(ocop)}
                           </span>
+                          {getTypeDescription(ocop) ? (
+                            <div className="mt-2 max-w-[220px] text-xs leading-5 text-slate-500">
+                              {getTypeDescription(ocop)}
+                            </div>
+                          ) : null}
                         </td>
 
-                        <td className="border-b border-slate-100 px-4 py-4 text-slate-700">
-                          {getStoreName(ocop)}
+                        <td className="min-w-[240px] border-b border-slate-100 px-4 py-4 text-slate-700">
+                          <div className="font-bold text-blue-950">
+                            {getStoreName(ocop)}
+                          </div>
+                          {getStoreAddress(ocop) ? (
+                            <div className="mt-1 text-xs leading-5 text-slate-500">
+                              {getStoreAddress(ocop)}
+                            </div>
+                          ) : null}
+                          {getStorePhone(ocop) ? (
+                            <div className="mt-1 text-xs font-semibold text-slate-600">
+                              {getStorePhone(ocop)}
+                            </div>
+                          ) : null}
+                          {getStoreWebsite(ocop) ? (
+                            <a
+                              href={getStoreWebsite(ocop)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-2 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900"
+                            >
+                              Website
+                            </a>
+                          ) : null}
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4">

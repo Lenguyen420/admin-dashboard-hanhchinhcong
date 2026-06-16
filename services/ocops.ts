@@ -38,6 +38,7 @@ export type ApiResponse<T> = {
     id: string;
     createdAt?: string;
     updatedAt?: string;
+    group?: string;
     name?: string;
     title?: string;
     description?: string;
@@ -54,9 +55,22 @@ export type ApiResponse<T> = {
     name?: string;
     title?: string;
     description?: string;
-    type?: string;
+    type?: string | OcopType;
     typeId?: string;
     ocopType?: OcopType;
+    star?: number | string;
+    storeId?: string;
+    store?: {
+      id?: string;
+      createdAt?: string;
+      updatedAt?: string;
+      name?: string;
+      address?: string;
+      phone?: string;
+      websiteUrl?: string;
+
+      [key: string]: unknown;
+    };
   
     ownerName?: string;
     producer?: string;
@@ -84,6 +98,8 @@ export type ApiResponse<T> = {
     description?: string;
     type?: string;
     typeId?: string;
+    star?: number | string;
+    storeId?: string;
   
     ownerName?: string;
     producer?: string;

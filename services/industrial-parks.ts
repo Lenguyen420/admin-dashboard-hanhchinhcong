@@ -32,42 +32,65 @@ export type ApiResponse<T> = {
     updatedAt?: string;
   
     name?: string;
+    status?: string;
     description?: string;
+    introduction?: string;
     address?: string;
     province?: string;
     district?: string;
     ward?: string;
+    establishedAt?: string;
+    mapUrl?: string;
   
+    totalArea?: number | string;
+    usedArea?: number | string;
     area?: number | string;
     occupancyRate?: number | string;
     investor?: string;
+    contactPerson?: string;
     phone?: string;
     email?: string;
     website?: string;
     imageUrl?: string;
     logoUrl?: string;
-    status?: string;
+    attachmentUrls?: string[];
+    attachments?: Array<{
+      id?: string;
+      url?: string;
+      fileName?: string;
+      mimeType?: string;
+      size?: number;
+      order?: number;
+      [key: string]: unknown;
+    }>;
   
     [key: string]: unknown;
   };
   
   export type CreateIndustrialParkPayload = {
     name?: string;
+    status?: string;
     description?: string;
+    introduction?: string;
     address?: string;
     province?: string;
     district?: string;
     ward?: string;
+    establishedAt?: string;
+    mapUrl?: string;
   
+    totalArea?: number | string;
+    usedArea?: number | string;
     area?: number | string;
     occupancyRate?: number | string;
     investor?: string;
+    contactPerson?: string;
     phone?: string;
     email?: string;
     website?: string;
     imageUrl?: string;
     logoUrl?: string;
-    status?: string;
+    attachmentUrls?: string[];
   
     [key: string]: unknown;
   };

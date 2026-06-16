@@ -8,9 +8,11 @@ export type ApiResponse<T> = {
   
   export type JobQuery = {
     page?: number;
+    size?: number;
     limit?: number;
     search?: string;
     keyword?: string;
+    zoneId?: string;
     location?: string;
     area?: string;
     workType?: string;
@@ -41,9 +43,16 @@ export type ApiResponse<T> = {
     updatedAt?: string;
   
     title?: string;
+    zoneId?: string;
+    zone?: {
+      id?: string;
+      name?: string;
+      [key: string]: unknown;
+    };
     companyName?: string;
     company?: string;
     description?: string;
+    jobDescription?: string;
     requirement?: string;
     requirements?: string;
     benefit?: string;
@@ -63,9 +72,11 @@ export type ApiResponse<T> = {
   
   export type CreateJobPayload = {
     title?: string;
+    zoneId?: string;
     companyName?: string;
     company?: string;
     description?: string;
+    jobDescription?: string;
     requirement?: string;
     requirements?: string;
     benefit?: string;
@@ -77,6 +88,7 @@ export type ApiResponse<T> = {
     employmentType?: string;
     deadline?: string;
     status?: string;
+    views?: number;
   
     [key: string]: unknown;
   };

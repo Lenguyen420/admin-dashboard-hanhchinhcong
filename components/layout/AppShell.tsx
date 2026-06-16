@@ -8,10 +8,10 @@ const navItems = [
     label: "Tổng quan",
     href: "/",
   },
-  // {
-  //   label: "Chatbot",
-  //   href: "/admin/knowledge",
-  // },
+  {
+    label: "Chatbot",
+    href: "/admin/knowledge",
+  },
   {
     label: "Phản ánh kiến nghị",
     href: "/admin/feedbacks",
@@ -52,14 +52,14 @@ const navItems = [
     label: "Cửa hàng",
     href: "/admin/stores",
   },
-  {
+  /*  {
     label: "Khu vực",
     href: "/admin/zones",
   },
   {
     label: "Tệp đính kèm",
     href: "/admin/attachments",
-  },
+  }, */
 ];
 
 function PartyFlag() {

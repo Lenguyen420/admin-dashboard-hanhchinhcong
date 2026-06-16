@@ -10,6 +10,7 @@ import {
   updateBusiness,
   type Business,
 } from "@/services/businesses";
+import LocationSelectFields from "@/components/location/LocationSelectFields";
 
 type BusinessForm = {
   name: string;
@@ -19,10 +20,14 @@ type BusinessForm = {
   email: string;
   website: string;
   field: string;
+  addressId: string;
+  addressLabel: string;
   address: string;
   province: string;
+  provinceCode: string;
   district: string;
   ward: string;
+  wardCode: string;
   logoUrl: string;
   status: string;
   description: string;
@@ -36,10 +41,14 @@ const initialForm: BusinessForm = {
   email: "",
   website: "",
   field: "",
+  addressId: "",
+  addressLabel: "Dia chi chinh",
   address: "",
   province: "",
+  provinceCode: "",
   district: "",
   ward: "",
+  wardCode: "",
   logoUrl: "",
   status: "ACTIVE",
   description: "",
@@ -75,6 +84,35 @@ function getWebsiteUrl(value?: string) {
   return `https://${value}`;
 }
 
+function getPrimaryAddress(business: Business) {
+  return (
+    business.addresses?.find((address) => address.isPrimary) ??
+    business.addresses?.[0]
+  );
+}
+
+function getBusinessAddressText(business: Business) {
+  return getPrimaryAddress(business)?.address ?? business.address ?? "-";
+}
+
+function getBusinessLocationText(business: Business) {
+  const primaryAddress = getPrimaryAddress(business);
+  const parts = [
+    business.ward ?? (primaryAddress?.wardCode ? `Mã xã ${primaryAddress.wardCode}` : ""),
+    business.district,
+    business.province ??
+      (primaryAddress?.provinceCode
+        ? `Mã tỉnh ${primaryAddress.provinceCode}`
+        : ""),
+  ].filter(Boolean);
+
+  return parts.join(", ");
+}
+
+function isActiveBusiness(business: Business) {
+  return business.status === "ACTIVE";
+}
+
 export default function BusinessesAdminPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [form, setForm] = useState<BusinessForm>(initialForm);
@@ -90,8 +128,8 @@ export default function BusinessesAdminPage() {
     if (!searchText) {
       return businesses;
     }
-
     return businesses.filter((business) => {
+      const primaryAddress = getPrimaryAddress(business);
       const content = [
         business.id,
         business.name,
@@ -103,6 +141,10 @@ export default function BusinessesAdminPage() {
         business.field,
         business.industry,
         business.address,
+        primaryAddress?.address,
+        primaryAddress?.label,
+        primaryAddress?.provinceCode,
+        primaryAddress?.wardCode,
         business.province,
         business.district,
         business.ward,
@@ -116,14 +158,18 @@ export default function BusinessesAdminPage() {
       return content.includes(searchText);
     });
   }, [businesses, keyword]);
+
   const activeBusinessCount = useMemo(() => {
-    return businesses.filter((business) => business.status === "ACTIVE").length;
+    return businesses.filter(isActiveBusiness).length;
   }, [businesses]);
 
   const provinceCount = useMemo(() => {
     return new Set(
       businesses
-        .map((business) => business.province)
+        .map(
+          (business) =>
+            business.province ?? getPrimaryAddress(business)?.provinceCode,
+        )
         .filter((value) => value && value !== "-"),
     ).size;
   }, [businesses]);
@@ -149,7 +195,11 @@ export default function BusinessesAdminPage() {
   }, []);
 
   useEffect(() => {
-    void loadBusinesses();
+    const timeoutId = window.setTimeout(() => {
+      void loadBusinesses();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadBusinesses]);
 
   const handleChange = (field: keyof BusinessForm, value: string) => {
@@ -166,6 +216,7 @@ export default function BusinessesAdminPage() {
 
   const handleEdit = (business: Business) => {
     setEditingId(business.id);
+    const primaryAddress = getPrimaryAddress(business);
 
     setForm({
       name: business.name ?? "",
@@ -175,10 +226,14 @@ export default function BusinessesAdminPage() {
       email: business.email ?? "",
       website: business.website ?? "",
       field: business.field ?? business.industry ?? "",
-      address: business.address ?? "",
+      addressId: primaryAddress?.id ?? "",
+      addressLabel: primaryAddress?.label ?? "Dia chi chinh",
+      address: primaryAddress?.address ?? business.address ?? "",
       province: business.province ?? "",
+      provinceCode: primaryAddress?.provinceCode ?? "",
       district: business.district ?? "",
       ward: business.ward ?? "",
+      wardCode: primaryAddress?.wardCode ?? "",
       logoUrl: business.logoUrl ?? business.imageUrl ?? "",
       status: business.status ?? "ACTIVE",
       description: business.description ?? "",
@@ -194,6 +249,19 @@ export default function BusinessesAdminPage() {
     }
 
     setSaving(true);
+    const primaryAddressPayload =
+      form.address.trim() || form.provinceCode || form.wardCode
+        ? {
+            id: form.addressId.trim() || undefined,
+            label: form.addressLabel.trim() || "Dia chi chinh",
+            address: form.address.trim() || undefined,
+            provinceCode: form.provinceCode.trim() || undefined,
+            wardCode: form.wardCode.trim() || undefined,
+            phone: form.phone.trim() || undefined,
+            isPrimary: true,
+            order: 0,
+          }
+        : undefined;
 
     const payload = {
       name: form.name.trim(),
@@ -206,8 +274,11 @@ export default function BusinessesAdminPage() {
       industry: form.field.trim() || undefined,
       address: form.address.trim() || undefined,
       province: form.province.trim() || undefined,
+      provinceCode: form.provinceCode.trim() || undefined,
       district: form.district.trim() || undefined,
       ward: form.ward.trim() || undefined,
+      wardCode: form.wardCode.trim() || undefined,
+      addresses: primaryAddressPayload ? [primaryAddressPayload] : undefined,
       logoUrl: form.logoUrl.trim() || undefined,
       status: form.status.trim() || undefined,
       description: form.description.trim() || undefined,
@@ -472,33 +543,18 @@ export default function BusinessesAdminPage() {
               />
             </div>
 
-            <div>
-              <label className="text-sm font-bold text-slate-700">
-                Tỉnh / Thành phố
-              </label>
-
-              <input
-                value={form.province}
-                onChange={(event) =>
-                  handleChange("province", event.target.value)
-                }
-                placeholder="VD: Tây Ninh"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-slate-700">
-                Xã / Phường
-              </label>
-
-              <input
-                value={form.ward}
-                onChange={(event) => handleChange("ward", event.target.value)}
-                placeholder="Nhập xã/phường"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
+            <LocationSelectFields
+              province={form.province}
+              provinceCode={form.provinceCode}
+              ward={form.ward}
+              wardCode={form.wardCode}
+              onProvinceChange={(value) => handleChange("province", value)}
+              onProvinceCodeChange={(value) =>
+                handleChange("provinceCode", value)
+              }
+              onWardChange={(value) => handleChange("ward", value)}
+              onWardCodeChange={(value) => handleChange("wardCode", value)}
+            />
 
             <div>
               <label className="text-sm font-bold text-slate-700">
@@ -626,7 +682,7 @@ export default function BusinessesAdminPage() {
                   ? filteredBusinesses.map((business) => {
                       const logoUrl = business.logoUrl ?? business.imageUrl;
                       const websiteUrl = getWebsiteUrl(business.website);
-                      const isActive = business.status === "ACTIVE";
+                      const isActive = isActiveBusiness(business);
 
                       return (
                         <tr
@@ -698,16 +754,10 @@ export default function BusinessesAdminPage() {
                           </td>
 
                           <td className="min-w-[280px] border-b border-slate-100 px-4 py-4">
-                            <div>{business.address ?? "-"}</div>
+                            <div>{getBusinessAddressText(business)}</div>
 
                             <div className="mt-1 text-xs text-slate-500">
-                              {[
-                                business.ward,
-                                business.district,
-                                business.province,
-                              ]
-                                .filter(Boolean)
-                                .join(", ")}
+                              {getBusinessLocationText(business)}
                             </div>
                           </td>
 
