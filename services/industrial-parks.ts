@@ -36,14 +36,25 @@ export type ApiResponse<T> = {
     description?: string;
     introduction?: string;
     address?: string;
+    establishedAt?: string;
+    mapUrl?: string;
+    totalArea?: number | string;
+    usedArea?: number | string;
+    contactPerson?: string;
+    attachmentUrls?: string[];
+
+    // Legacy fields kept so older records can still render safely.
     province?: string;
     district?: string;
     ward?: string;
+<<<<<<< Updated upstream
     establishedAt?: string;
     mapUrl?: string;
   
     totalArea?: number | string;
     usedArea?: number | string;
+=======
+>>>>>>> Stashed changes
     area?: number | string;
     occupancyRate?: number | string;
     investor?: string;
@@ -53,6 +64,7 @@ export type ApiResponse<T> = {
     website?: string;
     imageUrl?: string;
     logoUrl?: string;
+<<<<<<< Updated upstream
     attachmentUrls?: string[];
     attachments?: Array<{
       id?: string;
@@ -63,6 +75,8 @@ export type ApiResponse<T> = {
       order?: number;
       [key: string]: unknown;
     }>;
+=======
+>>>>>>> Stashed changes
   
     [key: string]: unknown;
   };
@@ -70,12 +84,28 @@ export type ApiResponse<T> = {
   export type CreateIndustrialParkPayload = {
     name?: string;
     status?: string;
+<<<<<<< Updated upstream
     description?: string;
     introduction?: string;
+=======
+>>>>>>> Stashed changes
     address?: string;
+    establishedAt?: string;
+    mapUrl?: string;
+    totalArea?: number;
+    usedArea?: number;
+    introduction?: string;
+    contactPerson?: string;
+    phone?: string;
+    website?: string;
+    description?: string;
+    attachmentUrls?: string[];
+
+    // Legacy fields kept for backward-compatible updates.
     province?: string;
     district?: string;
     ward?: string;
+<<<<<<< Updated upstream
     establishedAt?: string;
     mapUrl?: string;
   
@@ -86,11 +116,18 @@ export type ApiResponse<T> = {
     investor?: string;
     contactPerson?: string;
     phone?: string;
+=======
+    area?: number | string;
+    occupancyRate?: number | string;
+    investor?: string;
+>>>>>>> Stashed changes
     email?: string;
-    website?: string;
     imageUrl?: string;
     logoUrl?: string;
+<<<<<<< Updated upstream
     attachmentUrls?: string[];
+=======
+>>>>>>> Stashed changes
   
     [key: string]: unknown;
   };

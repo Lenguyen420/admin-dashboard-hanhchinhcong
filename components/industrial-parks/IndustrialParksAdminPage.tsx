@@ -221,9 +221,8 @@ export default function IndustrialParksAdminPage() {
   }, [industrialParks]);
 
   const parksWithAttachmentCount = useMemo(() => {
-    return industrialParks.filter((park) =>
-      getAttachmentCount(park) > 0,
-    ).length;
+    return industrialParks.filter((park) => getAttachmentCount(park) > 0)
+      .length;
   }, [industrialParks]);
 
   const averageOccupancyRate = useMemo(() => {
@@ -232,7 +231,11 @@ export default function IndustrialParksAdminPage() {
         const totalArea = Number(getText(park.totalArea) || getText(park.area));
         const usedArea = Number(getText(park.usedArea));
 
-        if (!Number.isNaN(totalArea) && totalArea > 0 && !Number.isNaN(usedArea)) {
+        if (
+          !Number.isNaN(totalArea) &&
+          totalArea > 0 &&
+          !Number.isNaN(usedArea)
+        ) {
           return (usedArea / totalArea) * 100;
         }
 
@@ -309,7 +312,11 @@ export default function IndustrialParksAdminPage() {
       imageUrl: getText(park.imageUrl),
       logoUrl: getText(park.logoUrl),
       status: getText(park.status),
-      attachmentUrls: (park.attachmentUrls ?? park.attachments?.map((item) => item.url ?? "") ?? [])
+      attachmentUrls: (
+        park.attachmentUrls ??
+        park.attachments?.map((item) => item.url ?? "") ??
+        []
+      )
         .filter(Boolean)
         .join("\n"),
     });
@@ -622,9 +629,7 @@ export default function IndustrialParksAdminPage() {
             </div>
 
             <div>
-              <label className="text-sm font-bold text-slate-700">
-                Bản đồ
-              </label>
+              <label className="text-sm font-bold text-slate-700">Bản đồ</label>
 
               <input
                 value={form.mapUrl}
@@ -805,123 +810,126 @@ export default function IndustrialParksAdminPage() {
                       );
 
                       return (
-                      <tr
-                        key={park.id}
-                        className="text-slate-700 transition hover:bg-blue-50/60"
-                      >
-                        <td className="max-w-[170px] border-b border-slate-100 px-4 py-4 text-xs text-slate-500">
-                          <span className="block truncate">{park.id}</span>
-                        </td>
+                        <tr
+                          key={park.id}
+                          className="text-slate-700 transition hover:bg-blue-50/60"
+                        >
+                          <td className="max-w-[170px] border-b border-slate-100 px-4 py-4 text-xs text-slate-500">
+                            <span className="block truncate">{park.id}</span>
+                          </td>
 
-                        <td className="min-w-[160px] border-b border-slate-100 px-4 py-4">
-                          {firstAttachmentUrl ? (
-                            <a
-                              href={firstAttachmentUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-100"
-                            >
-                              {getText(firstAttachment?.fileName) || "Mở tài liệu"}
-                            </a>
-                          ) : (
-                            <span className="text-xs text-slate-400">Chưa có</span>
-                          )}
+                          <td className="min-w-[160px] border-b border-slate-100 px-4 py-4">
+                            {firstAttachmentUrl ? (
+                              <a
+                                href={firstAttachmentUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-100"
+                              >
+                                {getText(firstAttachment?.fileName) ||
+                                  "Mở tài liệu"}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-slate-400">
+                                Chưa có
+                              </span>
+                            )}
 
-                          {getAttachmentCount(park) > 1 ? (
-                            <div className="mt-1 text-xs text-slate-500">
-                              +{getAttachmentCount(park) - 1} tệp khác
+                            {getAttachmentCount(park) > 1 ? (
+                              <div className="mt-1 text-xs text-slate-500">
+                                +{getAttachmentCount(park) - 1} tệp khác
+                              </div>
+                            ) : null}
+                          </td>
+
+                          <td className="min-w-[280px] border-b border-slate-100 px-4 py-4">
+                            <div className="font-bold text-blue-950">
+                              {getText(park.name) || "-"}
                             </div>
-                          ) : null}
-                        </td>
 
-                        <td className="min-w-[280px] border-b border-slate-100 px-4 py-4">
-                          <div className="font-bold text-blue-950">
-                            {getText(park.name) || "-"}
-                          </div>
+                            <div className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                              {getText(park.introduction) ||
+                                getText(park.description)}
+                            </div>
+                          </td>
 
-                          <div className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                            {getText(park.introduction) ||
-                              getText(park.description)}
-                          </div>
-                        </td>
+                          <td className="min-w-[280px] border-b border-slate-100 px-4 py-4 text-slate-600">
+                            <div>{getLocationText(park)}</div>
+                            {park.mapUrl ? (
+                              <a
+                                href={getText(park.mapUrl)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-1 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900"
+                              >
+                                Xem bản đồ
+                              </a>
+                            ) : null}
+                          </td>
 
-                        <td className="min-w-[280px] border-b border-slate-100 px-4 py-4 text-slate-600">
-                          <div>{getLocationText(park)}</div>
-                          {park.mapUrl ? (
-                            <a
-                              href={getText(park.mapUrl)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-1 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900"
-                            >
-                              Xem bản đồ
-                            </a>
-                          ) : null}
-                        </td>
+                          <td className="border-b border-slate-100 px-4 py-4 font-bold text-blue-950">
+                            <div>{getAreaText(park)}</div>
+                            <div className="mt-1 text-xs font-medium text-slate-500">
+                              Đã dùng: {getUsedAreaText(park)}
+                            </div>
+                          </td>
 
-                        <td className="border-b border-slate-100 px-4 py-4 font-bold text-blue-950">
-                          <div>{getAreaText(park)}</div>
-                          <div className="mt-1 text-xs font-medium text-slate-500">
-                            Đã dùng: {getUsedAreaText(park)}
-                          </div>
-                        </td>
+                          <td className="border-b border-slate-100 px-4 py-4">
+                            <span className="inline-flex rounded-full border border-yellow-200 bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800">
+                              {getOccupancyRateText(park)}
+                            </span>
+                          </td>
 
-                        <td className="border-b border-slate-100 px-4 py-4">
-                          <span className="inline-flex rounded-full border border-yellow-200 bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800">
-                            {getOccupancyRateText(park)}
-                          </span>
-                        </td>
+                          <td className="min-w-[190px] border-b border-slate-100 px-4 py-4 text-slate-700">
+                            <div className="font-medium">
+                              {getContactPersonText(park)}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {getText(park.phone)}
+                            </div>
+                            {park.website ? (
+                              <a
+                                href={getText(park.website)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-1 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900"
+                              >
+                                Website
+                              </a>
+                            ) : null}
+                          </td>
 
-                        <td className="min-w-[190px] border-b border-slate-100 px-4 py-4 text-slate-700">
-                          <div className="font-medium">
-                            {getContactPersonText(park)}
-                          </div>
-                          <div className="mt-1 text-xs text-slate-500">
-                            {getText(park.phone)}
-                          </div>
-                          {park.website ? (
-                            <a
-                              href={getText(park.website)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-1 inline-flex text-xs font-bold text-blue-700 hover:text-blue-900"
-                            >
-                              Website
-                            </a>
-                          ) : null}
-                        </td>
+                          <td className="border-b border-slate-100 px-4 py-4">
+                            <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">
+                              {getText(park.status) || "-"}
+                            </span>
+                          </td>
 
-                        <td className="border-b border-slate-100 px-4 py-4">
-                          <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">
-                            {getText(park.status) || "-"}
-                          </span>
-                        </td>
+                          <td className="border-b border-slate-100 px-4 py-4 text-slate-500">
+                            {formatDateTime(park.establishedAt)}
+                          </td>
 
-                        <td className="border-b border-slate-100 px-4 py-4 text-slate-500">
-                          {formatDateTime(park.establishedAt)}
-                        </td>
+                          <td className="border-b border-slate-100 px-4 py-4">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(park)}
+                                className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-50"
+                              >
+                                Sửa
+                              </button>
 
-                        <td className="border-b border-slate-100 px-4 py-4">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(park)}
-                              className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-50"
-                            >
-                              Sửa
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(park.id)}
-                              className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50"
-                            >
-                              Xóa
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(park.id)}
+                                className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50"
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
                     })
                   : null}
               </tbody>
