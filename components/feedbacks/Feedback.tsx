@@ -325,167 +325,228 @@ export function ResourceCrudPanel({
   }[notice.kind];
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
       {showHeader ? (
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-xs font-medium uppercase tracking-wide text-[#667085]">
-              {config.eyebrow}
-            </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#182433]">
-              {config.title}
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-[#526071]">
-              {config.description}
-            </p>
+        <section className="overflow-hidden rounded-[28px] border border-blue-900/10 bg-white shadow-sm">
+          <div className="h-2 bg-gradient-to-r from-red-700 via-yellow-400 to-blue-900" />
+
+          <div className="bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 p-6 text-white">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-4xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-yellow-200">
+                  {config.eyebrow}
+                </div>
+
+                <h1 className="mt-4 text-3xl font-extrabold tracking-tight">
+                  {config.title}
+                </h1>
+
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100">
+                  {config.description}
+                </p>
+              </div>
+
+              <button
+                aria-label="Tải lại"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-300 bg-yellow-400 px-5 py-3 text-sm font-bold text-blue-950 shadow-sm transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isLoading}
+                onClick={loadItems}
+                type="button"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {isLoading ? "Đang tải dữ liệu..." : "Làm mới dữ liệu"}
+              </button>
+            </div>
           </div>
-          <button
-            aria-label="Tải lại"
-            className="inline-flex h-10 w-fit items-center gap-2 rounded-md border border-[#dfe3e8] bg-white px-4 text-sm font-medium text-[#182433] shadow-sm hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-70"
-            disabled={isLoading}
-            onClick={loadItems}
-            type="button"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            Tải lại
-          </button>
-        </div>
+        </section>
       ) : null}
 
-      <div className="grid">
-        <section className="min-w-0 overflow-hidden rounded-md border border-[#dfe3e8] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-          <div className="border-b border-[#dfe3e8] p-5">
-            <div
-              className={`mb-4 flex items-start gap-2.5 rounded-md border px-3 py-2 text-sm ${noticeClassName}`}
-            >
-              {notice.kind === "success" ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-              ) : (
-                <AlertCircle className="h-4 w-4 shrink-0" />
-              )}
-              <span>{notice.message}</span>
-            </div>
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
+            Tổng bản ghi
+          </p>
+          <p className="mt-3 text-3xl font-extrabold text-blue-950">
+            {items.length}
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            Dữ liệu đang quản lý trong hệ thống
+          </p>
+        </div>
 
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase text-[#0d6efd]">
-                  GET /{config.resource}
-                </p>
-                <h2 className="mt-1 text-base font-semibold text-[#182433]">
-                  {config.listTitle}
-                </h2>
-                <p className="mt-1 text-sm text-[#667085]">
-                  Hiển thị {filteredItems.length} / {items.length} bản ghi.
-                </p>
-              </div>
+        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-700">
+            Đang hiển thị
+          </p>
+          <p className="mt-3 text-3xl font-extrabold text-blue-950">
+            {filteredItems.length}
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            Kết quả sau khi lọc tìm kiếm
+          </p>
+        </div>
 
-              <label className="relative block w-full lg:w-[320px]">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a94a6]" />
-                <input
-                  className="h-10 w-full rounded-md border border-[#d8dee8] bg-[#f8fafc] pl-9 pr-3 text-sm outline-none transition focus:border-[#0d6efd] focus:bg-white focus:ring-2 focus:ring-[#c7defd]"
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Tìm trong dữ liệu..."
-                  value={query}
-                />
-              </label>
-            </div>
+        <div className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-700">
+            API dữ liệu
+          </p>
+          <p className="mt-3 truncate text-2xl font-extrabold text-blue-950">
+            /{config.resource}
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            Nguồn dữ liệu backend đang sử dụng
+          </p>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-6 py-5">
+          <div
+            className={`mb-4 flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium ${noticeClassName}`}
+          >
+            {notice.kind === "success" ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0" />
+            )}
+            <span>{notice.message}</span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse">
-              <thead>
-                <tr className="border-b border-[#dfe3e8] bg-[#f8fafc] text-left text-[11px] font-bold uppercase tracking-wide text-[#667085]">
-                  {config.columns.map((column) => (
-                    <th className="px-4 py-3" key={column.key}>
-                      {column.label}
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredItems.map((item, index) => {
-                  const id = getRecordId(item) ?? `row-${index}`;
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">
+                GET /{config.resource}
+              </p>
 
-                  return (
-                    <tr
-                      className="border-b border-[#edf0f4] align-top last:border-0 hover:bg-[#f8fafc]"
-                      key={String(id)}
-                    >
-                      {config.columns.map((column) => (
-                        <td
-                          className="max-w-[300px] px-4 py-3 text-sm text-[#3f454d]"
-                          key={column.key}
-                        >
-                          <span className="line-clamp-3 break-words">
-                            {formatValue(readValue(item, column.key))}
-                          </span>
+              <h2 className="mt-2 text-xl font-extrabold text-blue-950">
+                {config.listTitle}
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Đang hiển thị {filteredItems.length} / {items.length} bản ghi.
+              </p>
+            </div>
+
+            <label className="relative block w-full lg:w-96">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                className="h-11 w-full rounded-xl border border-slate-300 bg-slate-50 pl-10 pr-3 text-sm outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Tìm trong dữ liệu..."
+                value={query}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto p-6">
+          <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
+            <thead>
+              <tr className="bg-blue-950 text-white">
+                {config.columns.map((column, index) => (
+                  <th
+                    className={`px-4 py-4 font-bold ${
+                      index === 0 ? "rounded-l-xl" : ""
+                    }`}
+                    key={column.key}
+                  >
+                    {column.label}
+                  </th>
+                ))}
+
+                <th className="rounded-r-xl px-4 py-4 text-right font-bold">
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {!isLoading
+                ? filteredItems.map((item, index) => {
+                    const id = getRecordId(item) ?? `row-${index}`;
+
+                    return (
+                      <tr
+                        className="align-top text-slate-700 transition hover:bg-blue-50/60"
+                        key={String(id)}
+                      >
+                        {config.columns.map((column) => (
+                          <td
+                            className="max-w-[320px] border-b border-slate-100 px-4 py-4 text-sm text-slate-700"
+                            key={column.key}
+                          >
+                            <span className="line-clamp-3 break-words">
+                              {formatValue(readValue(item, column.key))}
+                            </span>
+                          </td>
+                        ))}
+
+                        <td className="border-b border-slate-100 px-4 py-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              aria-label="Xem chi tiết"
+                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-800 transition hover:bg-blue-50"
+                              onClick={() => openDetail(item)}
+                              title="Xem chi tiết"
+                              type="button"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+
+                            <button
+                              aria-label="Sửa"
+                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-200 bg-white text-yellow-700 transition hover:bg-yellow-50"
+                              onClick={() => setSelectedRecord(item)}
+                              title="Sửa"
+                              type="button"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+
+                            <button
+                              aria-label="Xóa"
+                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-700 transition hover:bg-red-50"
+                              onClick={() => removeRecord(item)}
+                              title="Xóa"
+                              type="button"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
-                      ))}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            aria-label="Xem chi tiết"
-                            className="flex h-9 w-9 items-center justify-center rounded-md border border-[#dfe3e8] bg-white text-[#526071] hover:bg-[#eef6ff] hover:text-[#0d6efd]"
-                            onClick={() => openDetail(item)}
-                            title="Xem chi tiết"
-                            type="button"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            aria-label="Sửa"
-                            className="flex h-9 w-9 items-center justify-center rounded-md border border-[#dfe3e8] bg-white text-[#526071] hover:bg-[#eef6ff] hover:text-[#0d6efd]"
-                            onClick={() => setSelectedRecord(item)}
-                            title="Sửa"
-                            type="button"
-                          >
-                            <FileJson className="h-4 w-4" />
-                          </button>
-                          <button
-                            aria-label="Xóa"
-                            className="flex h-9 w-9 items-center justify-center rounded-md border border-red-100 bg-white text-red-500 hover:bg-red-50"
-                            onClick={() => removeRecord(item)}
-                            title="Xóa"
-                            type="button"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </tr>
+                    );
+                  })
+                : null}
+            </tbody>
+          </table>
+        </div>
+
+        {!isLoading && filteredItems.length === 0 ? (
+          <div className="flex min-h-[260px] flex-col items-center justify-center px-5 py-12 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-800">
+              <ResourceIcon resource={config.resource} />
+            </div>
+
+            <p className="mt-4 font-bold text-blue-950">{config.emptyText}</p>
+
+            <p className="mt-1 max-w-sm text-sm leading-6 text-slate-500">
+              Thử tải lại dữ liệu hoặc kiểm tra điều kiện tìm kiếm hiện tại.
+            </p>
           </div>
+        ) : null}
 
-          {!isLoading && filteredItems.length === 0 ? (
-            <div className="flex min-h-[260px] flex-col items-center justify-center px-5 py-12 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-md bg-[#eef6ff] text-[#0d6efd]">
-                <ResourceIcon resource={config.resource} />
-              </div>
-              <p className="mt-4 font-semibold text-[#182433]">
-                {config.emptyText}
-              </p>
-              <p className="mt-1 max-w-sm text-sm leading-6 text-[#667085]">
-                Thử tải lại dữ liệu hoặc tạo bản ghi mới bằng form bên trái.
-              </p>
-            </div>
-          ) : null}
-
-          {isLoading ? (
-            <div className="flex min-h-[260px] items-center justify-center gap-2 text-sm text-[#667085]">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Đang tải dữ liệu...
-            </div>
-          ) : null}
-        </section>
-      </div>
+        {isLoading ? (
+          <div className="flex min-h-[260px] items-center justify-center gap-2 text-sm text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Đang tải dữ liệu...
+          </div>
+        ) : null}
+      </section>
 
       {selectedRecord ? (
         <RecordModal
@@ -496,6 +557,7 @@ export function ResourceCrudPanel({
           record={selectedRecord}
         />
       ) : null}
+
       {detailRecord ? (
         <RecordDetailModal
           onClose={() => setDetailRecord(null)}

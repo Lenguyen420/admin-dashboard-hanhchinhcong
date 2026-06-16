@@ -10,6 +10,7 @@ export type PaginatedApiResponse<T> = {
   data?: T[];
   items?: T[];
   feedbacks?: T[];
+  feedbackTypes?: T[];
   total?: number;
   page?: number;
   limit?: number;
@@ -131,8 +132,9 @@ function normalizeListResponse(
     const body =
       unwrapped as PaginatedApiResponse<AdminRecord>;
 
-    const items =
+      const items =
       body.items ??
+      body.feedbackTypes ??
       body.feedbacks ??
       body.data ??
       [];

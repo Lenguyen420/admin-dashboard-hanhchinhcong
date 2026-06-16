@@ -150,10 +150,10 @@ function UnansweredStatusBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${config.className}`}
+      className={`inline-flex w-fit shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-center text-xs font-semibold leading-none ${config.className}`}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {config.label}
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+      <span className="whitespace-nowrap">{config.label}</span>
     </span>
   );
 }
@@ -467,9 +467,16 @@ export default function KnowledgeAdminPage() {
     error: <AlertCircle className="h-4 w-4 shrink-0" />,
     info: <Info className="h-4 w-4 shrink-0" />,
   }[notice.kind];
+  const panelClass =
+    "overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm ring-1 ring-slate-100 backdrop-blur";
 
+  const tableScrollClass =
+    "max-h-[460px] overflow-auto scroll-smooth [scrollbar-gutter:stable]";
+
+  const buttonBaseClass =
+    "inline-flex items-center justify-center gap-2 text-center leading-none";
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe_0,#f8fafc_36%,#eef2f7_100%)] text-slate-900">
       <section className="relative overflow-hidden bg-gradient-to-br from-[#082f72] via-[#0753a7] to-[#0ea5e9] text-white">
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
@@ -535,7 +542,7 @@ export default function KnowledgeAdminPage() {
 
       <section className="mx-auto grid max-w-[1440px] gap-5 px-4 py-6 sm:px-6 lg:px-8 xl:grid-cols-[390px_minmax(0,1fr)]">
         <form
-          className="h-fit rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-5"
+          className="h-fit max-h-[calc(100vh-2.5rem)] overflow-y-auto scroll-smooth rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm ring-1 ring-slate-100 backdrop-blur xl:sticky xl:top-5 [scrollbar-gutter:stable]"
           id="create-knowledge"
           onSubmit={submitKnowledge}
           ref={formRef}
@@ -632,7 +639,7 @@ export default function KnowledgeAdminPage() {
 
           <div className="border-t border-slate-100 p-5">
             <button
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className={`${buttonBaseClass} h-11 w-full rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60`}
               disabled={isSaving}
               type="submit"
             >
@@ -654,7 +661,7 @@ export default function KnowledgeAdminPage() {
             <span>{notice.message}</span>
           </div>
 
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <section className={panelClass}>
             <div className="border-b border-slate-100 p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -670,13 +677,14 @@ export default function KnowledgeAdminPage() {
                   </p>
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
+                  {" "}
                   {unansweredStatusOptions.map((option) => {
                     const active = unansweredStatusFilter === option.value;
 
                     return (
                       <button
-                        className={`whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
+                        className={`${buttonBaseClass} h-9 w-max min-w-[128px] shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-center text-xs font-semibold leading-none transition ${
                           active
                             ? "border-rose-600 bg-rose-600 text-white shadow-sm"
                             : "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
@@ -685,17 +693,18 @@ export default function KnowledgeAdminPage() {
                         onClick={() => setUnansweredStatusFilter(option.value)}
                         type="button"
                       >
-                        {option.label}
+                        <span className="block whitespace-nowrap text-center">
+                          {option.label}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
               </div>
             </div>
-
-            <div className="overflow-x-auto">
+            <div className={tableScrollClass}>
               <table className="w-full min-w-[840px] border-collapse">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                     <th className="px-5 py-3.5">Câu hỏi</th>
                     <th className="px-5 py-3.5">Số lần hỏi</th>
@@ -732,15 +741,17 @@ export default function KnowledgeAdminPage() {
                       <td className="px-5 py-4">
                         <div className="flex justify-end">
                           <button
-                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-9 min-w-[132px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-3.5 text-center text-xs font-semibold leading-none text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
                             disabled={question.status !== "OPEN"}
                             onClick={() =>
                               fillFormFromUnansweredQuestion(question)
                             }
                             type="button"
                           >
-                            <Plus className="h-4 w-4" />
-                            Tạo tri thức
+                            <Plus className="h-4 w-4 shrink-0" />
+                            <span className="whitespace-nowrap">
+                              Tạo tri thức
+                            </span>
                           </button>
                         </div>
                       </td>
@@ -749,14 +760,12 @@ export default function KnowledgeAdminPage() {
                 </tbody>
               </table>
             </div>
-
             {isLoadingUnanswered ? (
               <div className="flex items-center justify-center gap-2 px-5 py-8 text-sm font-medium text-slate-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Đang tải câu hỏi chatbot chưa trả lời...
               </div>
             ) : null}
-
             {!isLoadingUnanswered &&
             filteredUnansweredQuestions.length === 0 ? (
               <div className="px-5 py-8 text-center">
@@ -771,7 +780,7 @@ export default function KnowledgeAdminPage() {
             ) : null}
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <section className={panelClass}>
             <div className="border-b border-slate-100 p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -804,7 +813,7 @@ export default function KnowledgeAdminPage() {
 
                   return (
                     <button
-                      className={`whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
+                      className={`${buttonBaseClass} min-w-[96px] whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
                         active
                           ? "border-blue-600 bg-blue-600 text-white shadow-sm"
                           : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
@@ -819,8 +828,7 @@ export default function KnowledgeAdminPage() {
                 })}
               </div>
             </div>
-
-            <div className="overflow-x-auto">
+            <div className={tableScrollClass}>
               <table className="w-full min-w-[900px] border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -888,17 +896,18 @@ export default function KnowledgeAdminPage() {
                                 ? "Tri thức đã được xuất bản"
                                 : "Xuất bản tri thức"
                             }
-                            className="
-        group inline-flex h-9 items-center justify-center gap-1.5
-        rounded-xl bg-emerald-600 px-3.5
-        text-xs font-semibold text-white
-        shadow-sm shadow-emerald-200
-        transition-all duration-200
-        hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md
-        active:translate-y-0
-        disabled:cursor-not-allowed disabled:bg-slate-100
-        disabled:text-slate-400 disabled:shadow-none
-      "
+                            className={`
+                              ${buttonBaseClass}
+                              group h-9 min-w-[104px]
+                              rounded-xl bg-emerald-600 px-3.5
+                              text-xs font-semibold text-white
+                              shadow-sm shadow-emerald-200
+                              transition-all duration-200
+                              hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md
+                              active:translate-y-0
+                              disabled:cursor-not-allowed disabled:bg-slate-100
+                              disabled:text-slate-400 disabled:shadow-none
+                            `}
                             disabled={item.status === "PUBLISHED" || isLoading}
                             onClick={() => changeStatus(item.id, "PUBLISHED")}
                             title={
@@ -921,17 +930,18 @@ export default function KnowledgeAdminPage() {
                                 ? "Tri thức đã được lưu trữ"
                                 : "Lưu trữ tri thức"
                             }
-                            className="
-        group inline-flex h-9 w-9 items-center justify-center
-        rounded-xl border border-slate-200
-        bg-white text-slate-500 shadow-sm
-        transition-all duration-200
-        hover:-translate-y-0.5 hover:border-amber-200
-        hover:bg-amber-50 hover:text-amber-600 hover:shadow-md
-        active:translate-y-0
-        disabled:cursor-not-allowed disabled:bg-slate-100
-        disabled:text-slate-300 disabled:shadow-none
-      "
+                            className={`
+                              ${buttonBaseClass}
+                              group h-9 w-9 shrink-0
+                              rounded-xl border border-slate-200
+                              bg-white text-slate-500 shadow-sm
+                              transition-all duration-200
+                              hover:-translate-y-0.5 hover:border-amber-200
+                              hover:bg-amber-50 hover:text-amber-600 hover:shadow-md
+                              active:translate-y-0
+                              disabled:cursor-not-allowed disabled:bg-slate-100
+                              disabled:text-slate-300 disabled:shadow-none
+                            `}
                             disabled={item.status === "ARCHIVED" || isLoading}
                             onClick={() => changeStatus(item.id, "ARCHIVED")}
                             title={
@@ -950,7 +960,6 @@ export default function KnowledgeAdminPage() {
                 </tbody>
               </table>
             </div>
-
             {filteredItems.length === 0 ? (
               <div className="flex min-h-[300px] flex-col items-center justify-center px-5 py-12 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
@@ -965,7 +974,6 @@ export default function KnowledgeAdminPage() {
                 </p>
               </div>
             ) : null}
-
             <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
               <span>
                 Hiển thị{" "}

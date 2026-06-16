@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import FeedbackTypesPanel from "@/components/feedbacks/FeedbackTypesPanel";
 import {
   ResourceCrudPanel,
   type CrudAdminConfig,
@@ -9,64 +10,6 @@ import AppShell from "@/components/layout/AppShell";
 export const metadata: Metadata = {
   title: "Quản lý phản ánh",
   description: "Quản lý loại phản ánh và phản ánh, kiến nghị của người dân",
-};
-
-const feedbackTypeConfig: CrudAdminConfig = {
-  activeHref: "/admin/feedbacks",
-
-  title: "Loại phản ánh",
-
-  eyebrow: "Danh mục phản ánh",
-
-  description:
-    "Quản lý danh mục loại phản ánh để người dân lựa chọn khi gửi phản ánh, kiến nghị.",
-
-  resource: "feedback-types",
-
-  createTitle: "Thêm loại phản ánh",
-
-  listTitle: "Danh sách loại phản ánh",
-
-  emptyText: "Chưa có loại phản ánh nào.",
-
-  columns: [
-    { key: "id", label: "ID" },
-    { key: "title", label: "Tên loại" },
-    { key: "order", label: "Thứ tự" },
-    { key: "createdAt", label: "Ngày tạo" },
-  ],
-
-  fields: [
-    {
-      label: "Tên loại phản ánh",
-      name: "title",
-      placeholder: "Ví dụ: Hạ tầng đô thị",
-      required: true,
-    },
-    {
-      label: "Thứ tự hiển thị",
-      name: "order",
-      placeholder: "1",
-      required: true,
-      type: "number",
-    },
-  ],
-
-  editFields: [
-    {
-      label: "Tên loại phản ánh",
-      name: "title",
-      placeholder: "Ví dụ: Hạ tầng đô thị",
-      required: true,
-    },
-    {
-      label: "Thứ tự hiển thị",
-      name: "order",
-      placeholder: "1",
-      required: true,
-      type: "number",
-    },
-  ],
 };
 
 const feedbackConfig: CrudAdminConfig = {
@@ -160,7 +103,7 @@ export default function Page() {
           </p>
         </div>
 
-        <ResourceCrudPanel config={feedbackTypeConfig} showHeader />
+        <FeedbackTypesPanel />
 
         <ResourceCrudPanel config={feedbackConfig} showHeader />
       </main>
