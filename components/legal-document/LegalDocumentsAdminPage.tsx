@@ -9,7 +9,10 @@ import {
   updateLegalDocument,
   type LegalDocument,
 } from "@/services/legal-document";
-
+import {
+  getDocumentCategories,
+  type DocumentCategory,
+} from "@/services/document-categories";
 type LegalDocumentForm = {
   title: string;
   category: string;
@@ -79,7 +82,9 @@ export default function LegalDocumentsAdminPage() {
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
+  const [documentCategories, setDocumentCategories] = useState<
+    DocumentCategory[]
+  >([]);
   const filteredDocuments = useMemo(() => {
     const searchText = keyword.trim().toLowerCase();
 
@@ -128,11 +133,16 @@ export default function LegalDocumentsAdminPage() {
     setLoading(true);
 
     try {
-      const data = await getLegalDocuments();
-      setDocuments(data);
+      const [documentsData, categoriesData] = await Promise.all([
+        getLegalDocuments(),
+        getDocumentCategories(),
+      ]);
+
+      setDocuments(documentsData);
+      setDocumentCategories(categoriesData);
     } catch (error) {
-      console.error("Lỗi tải văn bản pháp luật:", error);
-      alert("Không thể tải danh sách văn bản pháp luật.");
+      console.error("Lỗi tải dữ liệu văn bản pháp luật:", error);
+      alert("Không thể tải dữ liệu văn bản pháp luật.");
     } finally {
       setLoading(false);
     }
@@ -148,7 +158,17 @@ export default function LegalDocumentsAdminPage() {
       [field]: value,
     }));
   };
+  const handleCategorySelect = (categoryId: string) => {
+    const selectedCategory = documentCategories.find(
+      (category) => category.id === categoryId,
+    );
 
+    setForm((prev) => ({
+      ...prev,
+      categoryId,
+      category: selectedCategory?.name ?? "",
+    }));
+  };
   const resetForm = () => {
     setForm(initialForm);
     setEditingId(null);
@@ -326,26 +346,27 @@ export default function LegalDocumentsAdminPage() {
             <label className="text-sm font-bold text-slate-700">
               Danh mục văn bản
             </label>
-            <input
-              value={form.category}
-              onChange={(event) => handleChange("category", event.target.value)}
-              placeholder="VD: Chỉ đạo điều hành"
-              className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
-            />
-          </div>
 
-          <div>
-            <label className="text-sm font-bold text-slate-700">
-              Mã danh mục
-            </label>
-            <input
+            <select
               value={form.categoryId}
-              onChange={(event) =>
-                handleChange("categoryId", event.target.value)
-              }
-              placeholder="UUID danh mục nếu có"
+              onChange={(event) => handleCategorySelect(event.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
-            />
+            >
+              <option value="">-- Chọn danh mục văn bản --</option>
+
+              {documentCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                  {category.group ? ` - ${category.group}` : ""}
+                </option>
+              ))}
+            </select>
+
+            {form.category ? (
+              <p className="mt-2 text-xs text-slate-500">
+                Đã chọn: <span className="font-semibold">{form.category}</span>
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -371,8 +392,7 @@ export default function LegalDocumentsAdminPage() {
               className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
             />
           </div>
-
-          <div className="lg:col-span-2">
+          <div>
             <label className="text-sm font-bold text-slate-700">
               Đường dẫn văn bản
             </label>

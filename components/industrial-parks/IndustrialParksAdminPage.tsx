@@ -537,21 +537,6 @@ export default function IndustrialParksAdminPage() {
 
             <div>
               <label className="text-sm font-bold text-slate-700">
-                Quận/Huyện
-              </label>
-
-              <input
-                value={form.district}
-                onChange={(event) =>
-                  handleChange("district", event.target.value)
-                }
-                placeholder="Nhập quận/huyện"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-slate-700">
                 Xã/Phường
               </label>
 

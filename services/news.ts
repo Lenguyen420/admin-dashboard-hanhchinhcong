@@ -82,12 +82,10 @@ export type ApiResponse<T> = {
   };
   
   const API_URL =
-    (
-      process.env.NEXT_PUBLIC_API_URL ??
-      ""
-    ).replace(/\/$/, "");
-  
-  const ADMIN_KEY = process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
+
+const ADMIN_KEY =
+  process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";
   
   if (!API_URL) {
     throw new Error(

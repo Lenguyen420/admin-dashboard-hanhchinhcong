@@ -394,14 +394,6 @@ export default function UsersPanel() {
                         <td className="border-b border-slate-100 px-4 py-4">
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-50"
-                              onClick={() => openDetail(user)}
-                              type="button"
-                            >
-                              Xem
-                            </button>
-
-                            <button
                               className="rounded-lg border border-yellow-200 bg-white px-3 py-2 text-xs font-bold text-yellow-700 transition hover:bg-yellow-50"
                               onClick={() => setEditingUser(user)}
                               type="button"
