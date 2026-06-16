@@ -44,6 +44,15 @@ async function proxyToBackend(request: Request, { params }: RouteParams) {
   headers.delete("content-length");
   headers.delete("origin");
   headers.delete("referer");
+
+  headers.delete("connection");
+  headers.delete("upgrade");
+  headers.delete("keep-alive");
+  headers.delete("proxy-authenticate");
+  headers.delete("proxy-authorization");
+  headers.delete("te");
+  headers.delete("trailer");
+  headers.delete("transfer-encoding");
   headers.set("accept", headers.get("accept") ?? "application/json");
   headers.set("ngrok-skip-browser-warning", "true");
 

@@ -563,7 +563,7 @@ export default function IndustrialParksAdminPage() {
               />
             </div>
 
-            <div className="lg:col-span-2">
+            <div>
               <label className="text-sm font-bold text-slate-700">
                 URL hình ảnh
               </label>
