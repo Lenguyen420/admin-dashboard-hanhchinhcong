@@ -146,7 +146,7 @@ function Logo() {
               text-white sm:text-base
             "
           >
-            XÃ CÂY SỘP, TỈNH TP. HỒ CHÍ MINH
+            Xã Tân Lập - Tỉnh Tây Ninh
           </p>
         </div>
       </div>
