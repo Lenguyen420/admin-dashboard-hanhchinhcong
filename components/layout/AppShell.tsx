@@ -8,10 +8,10 @@ const navItems = [
     label: "Tổng quan",
     href: "/",
   },
-  {
-    label: "Chatbot",
-    href: "/admin/knowledge",
-  },
+  // {
+  //   label: "Chatbot",
+  //   href: "/admin/knowledge",
+  // },
   {
     label: "Phản ánh kiến nghị",
     href: "/admin/feedbacks",
