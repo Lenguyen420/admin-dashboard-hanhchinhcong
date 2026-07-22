@@ -82,6 +82,7 @@ function getHeaders(
 ): HeadersInit {
   const headers: Record<string, string> = {
     Accept: "application/json",
+    "ngrok-skip-browser-warning": "true",
   };
 
   const token = getStoredAdminToken();

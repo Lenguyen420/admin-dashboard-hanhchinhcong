@@ -86,6 +86,7 @@ export default function CitizenAssistantChat() {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json; charset=utf-8",
+          "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify({ question: trimmedQuestion }),
       });
