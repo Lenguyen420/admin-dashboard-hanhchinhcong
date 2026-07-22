@@ -16,7 +16,7 @@ const LOGIN_ENDPOINT =
 
 const ACCESS_TOKEN_KEYS = new Set(["token", "accesstoken", "jwt"]);
 const REFRESH_TOKEN_KEYS = new Set(["refreshtoken", "refresh"]);
-const USE_FAKE_LOGIN = process.env.ADMIN_FAKE_LOGIN !== "false";
+const USE_FAKE_LOGIN = process.env.ADMIN_FAKE_LOGIN === "true";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -108,6 +108,32 @@ function findTokenByKey(
   return null;
 }
 
+function findExpiresIn(value: unknown): number | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const direct = value.expiresIn;
+
+  if (typeof direct === "number" && Number.isFinite(direct)) {
+    return direct;
+  }
+
+  if (isRecord(value.data)) {
+    return findExpiresIn(value.data);
+  }
+
+  return null;
+}
+
+function unwrapApiData(value: unknown): unknown {
+  if (isRecord(value) && "data" in value) {
+    return value.data;
+  }
+
+  return value;
+}
+
 function jsonNoStore(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
   response.headers.set("Cache-Control", "no-store");
@@ -119,8 +145,10 @@ function setAuthCookies(
   response: NextResponse,
   accessToken?: string | null,
   refreshToken?: string | null,
+  expiresIn?: number | null,
 ) {
   const secure = process.env.NODE_ENV === "production";
+  const accessMaxAge = Math.max(60, Math.floor(expiresIn ?? 15 * 60));
 
   response.cookies.set({
     name: "admin_session",
@@ -140,7 +168,7 @@ function setAuthCookies(
       sameSite: "lax",
       secure,
       path: "/",
-      maxAge: 60 * 60 * 24,
+      maxAge: accessMaxAge,
     });
   }
 
@@ -189,6 +217,7 @@ export async function POST(request: Request) {
       message: "Đăng nhập tạm thời thành công.",
       data: {
         token: "temporary-admin-token",
+        expiresIn: 15 * 60,
         user: {
           username,
           role: "admin",
@@ -196,7 +225,7 @@ export async function POST(request: Request) {
       },
     });
 
-    setAuthCookies(response, "temporary-admin-token");
+    setAuthCookies(response, "temporary-admin-token", null, 15 * 60);
 
     return response;
   }
@@ -215,22 +244,46 @@ export async function POST(request: Request) {
     const responseBody = await readResponseBody(backendResponse);
 
     if (!backendResponse.ok) {
-      return jsonNoStore(
+      const response = jsonNoStore(
         {
           message: getMessage(responseBody, "Đăng nhập không thành công."),
         },
         { status: backendResponse.status },
       );
-    }
+      const retryAfter = backendResponse.headers.get("Retry-After");
 
-    const response = jsonNoStore({
-      success: true,
-      message: getMessage(responseBody, "Đăng nhập thành công."),
-    });
+      if (retryAfter) {
+        response.headers.set("Retry-After", retryAfter);
+      }
+
+      return response;
+    }
 
     const accessToken = findTokenByKey(responseBody, ACCESS_TOKEN_KEYS);
     const refreshToken = findTokenByKey(responseBody, REFRESH_TOKEN_KEYS);
-    setAuthCookies(response, accessToken, refreshToken);
+    const expiresIn = findExpiresIn(responseBody);
+    const rawData = unwrapApiData(responseBody);
+    const data = isRecord(rawData)
+      ? {
+          ...rawData,
+          accessToken: rawData.accessToken ?? rawData.token ?? accessToken,
+          token: rawData.token ?? rawData.accessToken ?? accessToken,
+          refreshToken: rawData.refreshToken ?? refreshToken,
+          expiresIn: rawData.expiresIn ?? expiresIn,
+        }
+      : {
+          accessToken,
+          token: accessToken,
+          refreshToken,
+          expiresIn,
+        };
+    const response = jsonNoStore({
+      success: true,
+      message: getMessage(responseBody, "Đăng nhập thành công."),
+      data,
+    });
+
+    setAuthCookies(response, accessToken, refreshToken, expiresIn);
 
     return response;
   } catch (error) {

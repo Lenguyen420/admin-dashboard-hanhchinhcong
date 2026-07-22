@@ -6,7 +6,7 @@ export type ApiResponse<T> = {
   data: T;
 };
 
-export type IndustrialParkQuery = {
+export type MeetingRoomQuery = {
   page?: number;
   size?: number;
   keyword?: string;
@@ -15,7 +15,8 @@ export type IndustrialParkQuery = {
 export type PaginatedResponse<T> = {
   data?: T[];
   items?: T[];
-  industrialParks?: T[];
+  rooms?: T[];
+  meetingRooms?: T[];
   total?: number;
   page?: number;
   size?: number;
@@ -28,78 +29,70 @@ export type PaginatedResponse<T> = {
   };
 };
 
-export type IndustrialPark = {
+export type MeetingRoom = {
   id: string;
   createdAt?: string;
   updatedAt?: string;
 
   name?: string;
+  code?: string;
   status?: string;
   description?: string;
-  introduction?: string;
-  address?: string;
-  province?: string;
-  district?: string;
-  ward?: string;
-  establishedAt?: string;
-  mapUrl?: string;
+  note?: string;
 
-  totalArea?: number | string;
-  usedArea?: number | string;
-  area?: number | string;
-  occupancyRate?: number | string;
-  investor?: string;
+  location?: string;
+  address?: string;
+  building?: string;
+  floor?: string | number;
+
+  capacity?: number | string;
+  seats?: number | string;
+
+  managerName?: string;
   contactPerson?: string;
   phone?: string;
   email?: string;
-  website?: string;
+
   imageUrl?: string;
-  logoUrl?: string;
-  attachmentUrls?: string[];
-  attachments?: Array<{
+  equipment?: string[] | string;
+  devices?: Array<{
     id?: string;
-    url?: string;
-    fileName?: string;
-    mimeType?: string;
-    size?: number;
-    order?: number;
+    name?: string;
+    status?: string;
     [key: string]: unknown;
   }>;
 
+  isActive?: boolean;
+
   [key: string]: unknown;
 };
 
-export type CreateIndustrialParkPayload = {
+export type CreateMeetingRoomPayload = {
   name?: string;
+  code?: string;
   status?: string;
   description?: string;
-  introduction?: string;
-  address?: string;
-  province?: string;
-  district?: string;
-  ward?: string;
-  establishedAt?: string;
-  mapUrl?: string;
+  note?: string;
 
-  totalArea?: number | string;
-  usedArea?: number | string;
-  area?: number | string;
-  occupancyRate?: number | string;
-  investor?: string;
-  contactPerson?: string;
+  location?: string;
+  building?: string;
+  floor?: string | number;
+
+  capacity?: number | string;
+
+  managerName?: string;
   phone?: string;
   email?: string;
-  website?: string;
+
   imageUrl?: string;
-  logoUrl?: string;
-  attachmentUrls?: string[];
+  equipment?: string[];
 
   [key: string]: unknown;
 };
 
-export type UpdateIndustrialParkPayload = Partial<CreateIndustrialParkPayload>;
+export type UpdateMeetingRoomPayload = Partial<CreateMeetingRoomPayload>;
 
-const API_URL = "https://be.government.kidoedu.vn";const RESOURCE = "industrial-parks";
+const API_URL = "https://be.government.kidoedu.vn";const RESOURCE = "meeting-rooms";
 
 if (!API_URL) {
   throw new Error(
@@ -123,7 +116,7 @@ function getHeaders(hasJsonBody = false): HeadersInit {
   return headers;
 }
 
-function buildQueryString(query?: IndustrialParkQuery): string {
+function buildQueryString(query?: MeetingRoomQuery): string {
   if (!query) {
     return "";
   }
@@ -192,17 +185,18 @@ function unwrapApiResponse<T>(value: T | ApiResponse<T>): T {
   return value as T;
 }
 
-function normalizeListResponse<T>(value: unknown): T[] {
+function normalizeListResponse(value: unknown): MeetingRoom[] {
   const unwrapped = unwrapApiResponse<unknown>(value as ApiResponse<unknown>);
 
   if (Array.isArray(unwrapped)) {
-    return unwrapped as T[];
+    return unwrapped as MeetingRoom[];
   }
 
   if (typeof unwrapped === "object" && unwrapped !== null) {
-    const body = unwrapped as PaginatedResponse<T>;
+    const body = unwrapped as PaginatedResponse<MeetingRoom>;
 
-    const items = body.items ?? body.industrialParks ?? body.data ?? [];
+    const items =
+      body.items ?? body.rooms ?? body.meetingRooms ?? body.data ?? [];
 
     return Array.isArray(items) ? items : [];
   }
@@ -210,7 +204,7 @@ function normalizeListResponse<T>(value: unknown): T[] {
   return [];
 }
 
-function normalizeSingleResponse<T>(value: unknown): T {
+function normalizeSingleResponse(value: unknown): MeetingRoom {
   const unwrapped = unwrapApiResponse<unknown>(value as ApiResponse<unknown>);
 
   if (
@@ -218,10 +212,10 @@ function normalizeSingleResponse<T>(value: unknown): T {
     unwrapped !== null &&
     !Array.isArray(unwrapped)
   ) {
-    return unwrapped as T;
+    return unwrapped as MeetingRoom;
   }
 
-  return {} as T;
+  return {} as MeetingRoom;
 }
 
 async function request<T>(
@@ -233,10 +227,10 @@ async function request<T>(
   return handleResponse<T>(response);
 }
 
-// GET /industrial-parks
-export async function getIndustrialParks(
-  query?: IndustrialParkQuery,
-): Promise<IndustrialPark[]> {
+// GET /meeting-rooms
+export async function getMeetingRooms(
+  query?: MeetingRoomQuery,
+): Promise<MeetingRoom[]> {
   const queryString = buildQueryString(query);
 
   const data = await request<unknown>(`/${RESOURCE}${queryString}`, {
@@ -245,55 +239,53 @@ export async function getIndustrialParks(
     cache: "no-store",
   });
 
-  return normalizeListResponse<IndustrialPark>(data);
+  return normalizeListResponse(data);
 }
 
-// GET /industrial-parks/:id
-export async function getIndustrialParkById(
+// GET /meeting-rooms/:id
+export async function getMeetingRoomById(
   id: string | number,
-): Promise<IndustrialPark> {
+): Promise<MeetingRoom> {
   const data = await request<unknown>(`/${RESOURCE}/${id}`, {
     method: "GET",
     headers: getHeaders(),
     cache: "no-store",
   });
 
-  return normalizeSingleResponse<IndustrialPark>(data);
+  return normalizeSingleResponse(data);
 }
 
-// POST /industrial-parks
-export async function createIndustrialPark(
-  payload: CreateIndustrialParkPayload,
-): Promise<IndustrialPark> {
+// POST /meeting-rooms
+export async function createMeetingRoom(
+  payload: CreateMeetingRoomPayload,
+): Promise<MeetingRoom> {
   const data = await request<unknown>(`/${RESOURCE}`, {
     method: "POST",
     headers: getHeaders(true),
     body: JSON.stringify(payload),
   });
 
-  return normalizeSingleResponse<IndustrialPark>(data);
+  return normalizeSingleResponse(data);
 }
 
-// PATCH /industrial-parks/:id
-export async function updateIndustrialPark(
+// PATCH /meeting-rooms/:id
+export async function updateMeetingRoom(
   id: string | number,
-  payload: UpdateIndustrialParkPayload,
-): Promise<IndustrialPark> {
+  payload: UpdateMeetingRoomPayload,
+): Promise<MeetingRoom> {
   const data = await request<unknown>(`/${RESOURCE}/${id}`, {
     method: "PATCH",
     headers: getHeaders(true),
     body: JSON.stringify(payload),
   });
 
-  return normalizeSingleResponse<IndustrialPark>(data);
+  return normalizeSingleResponse(data);
 }
 
-// DELETE /industrial-parks/:id
-export async function deleteIndustrialPark(
+// PATCH /meeting-rooms/:id (chỉ đổi trạng thái)
+export async function updateMeetingRoomStatus(
   id: string | number,
-): Promise<void> {
-  await request<unknown>(`/${RESOURCE}/${id}`, {
-    method: "DELETE",
-    headers: getHeaders(),
-  });
+  status: string,
+): Promise<MeetingRoom> {
+  return updateMeetingRoom(id, { status });
 }

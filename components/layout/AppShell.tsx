@@ -2,6 +2,7 @@ import { Bell, Grid2X2, Moon, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import LogoutButton from "@/components/auth/LogoutButton";
 
 const navItems = [
   {
@@ -23,6 +24,26 @@ const navItems = [
   {
     label: "Tin tức",
     href: "/admin/news",
+  },
+  {
+    label: "Cuộc họp",
+    href: "/admin/meetings",
+  },
+  {
+    label: "Phòng họp",
+    href: "/admin/meeting-rooms",
+  },
+  {
+    label: "Tài liệu",
+    href: "/admin/documents",
+  },
+  {
+    label: "Thiết bị",
+    href: "/admin/devices",
+  },
+  {
+    label: "Báo cáo",
+    href: "/admin/reports",
   },
   {
     label: "Văn bản pháp luật",
@@ -52,14 +73,14 @@ const navItems = [
     label: "Cửa hàng",
     href: "/admin/stores",
   },
-  /*  {
+  {
     label: "Khu vực",
     href: "/admin/zones",
   },
   {
     label: "Tệp đính kèm",
     href: "/admin/attachments",
-  }, */
+  },
 ];
 
 function PartyFlag() {
@@ -146,7 +167,7 @@ function Logo() {
               text-white sm:text-base
             "
           >
-            Xã Tân Lập - Tỉnh Tây Ninh
+            Xã Lộc Ninh - Tỉnh Tây Ninh
           </p>
         </div>
       </div>
@@ -260,6 +281,8 @@ function Header() {
               <p className="text-sm font-semibold text-white">Quản trị viên</p>
               <p className="text-xs text-yellow-100/90">Administrator</p>
             </div>
+
+            <LogoutButton />
           </div>
         </div>
       </div>

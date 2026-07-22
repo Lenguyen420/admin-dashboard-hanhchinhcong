@@ -25,6 +25,7 @@ export type AdminLoginData = {
     accessToken?: string;
     token?: string;
     refreshToken?: string;
+    expiresIn?: number | null;
     user?: AdminUser;
     admin?: AdminUser;
 
@@ -32,6 +33,37 @@ export type AdminLoginData = {
 };
 
 const API_URL = "/api/auth";
+const ACCESS_TOKEN_STORAGE_KEY = "admin_access_token";
+const REFRESH_TOKEN_STORAGE_KEY = "admin_refresh_token";
+const EXPIRES_AT_STORAGE_KEY = "admin_access_expires_at";
+
+export class ApiError extends Error {
+    statusCode: number;
+    errorCode?: string;
+    retryAfter?: number;
+
+    constructor({
+        message,
+        statusCode,
+        errorCode,
+        retryAfter,
+    }: {
+        message: string;
+        statusCode: number;
+        errorCode?: string;
+        retryAfter?: number;
+    }) {
+        super(message);
+        this.name = "ApiError";
+        this.statusCode = statusCode;
+        this.errorCode = errorCode;
+        this.retryAfter = retryAfter;
+    }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+    return error instanceof ApiError;
+}
 
 function getHeaders(hasJsonBody = false): HeadersInit {
     const headers: Record<string, string> = {
@@ -50,12 +82,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
     if (!response.ok) {
         let message = `API request failed: ${response.status}`;
+        let errorCode: string | undefined;
 
         if (text) {
             try {
                 const body = JSON.parse(text) as {
                     message?: string | string[];
                     error?: string;
+                    statusCode?: number;
                 };
 
                 if (Array.isArray(body.message)) {
@@ -63,12 +97,24 @@ async function handleResponse<T>(response: Response): Promise<T> {
                 } else {
                     message = body.message ?? body.error ?? message;
                 }
+
+                errorCode = body.error;
             } catch {
                 message = text;
             }
         }
 
-        throw new Error(message);
+        const retryAfterHeader = response.headers.get("Retry-After");
+        const retryAfter = retryAfterHeader
+            ? Number.parseInt(retryAfterHeader, 10)
+            : undefined;
+
+        throw new ApiError({
+            message,
+            statusCode: response.status,
+            errorCode,
+            retryAfter: Number.isFinite(retryAfter) ? retryAfter : undefined,
+        });
     }
 
     if (response.status === 204 || !text) {
@@ -121,4 +167,54 @@ export async function adminLogin(
 
 export function getAdminToken(data: AdminLoginData): string {
     return String(data.accessToken ?? data.token ?? "");
+}
+
+export function getStoredAdminToken(): string {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    return window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? "";
+}
+
+export function getStoredRefreshToken(): string {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    return window.localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? "";
+}
+
+export function rememberAdminAuth(data: AdminLoginData) {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    const accessToken = getAdminToken(data);
+    const refreshToken = data.refreshToken ? String(data.refreshToken) : "";
+
+    if (accessToken) {
+        window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
+    }
+
+    if (refreshToken) {
+        window.localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+    }
+
+    if (typeof data.expiresIn === "number" && Number.isFinite(data.expiresIn)) {
+        window.localStorage.setItem(
+            EXPIRES_AT_STORAGE_KEY,
+            String(Date.now() + data.expiresIn * 1000),
+        );
+    }
+}
+
+export function clearAdminAuth() {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    window.localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+    window.localStorage.removeItem(EXPIRES_AT_STORAGE_KEY);
 }

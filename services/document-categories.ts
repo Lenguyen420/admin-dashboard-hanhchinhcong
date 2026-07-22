@@ -1,3 +1,5 @@
+import { getStoredAdminToken } from "@/services/auth.service";
+
 export type ApiResponse<T> = {
     success: boolean;
     message: string;
@@ -49,11 +51,7 @@ export type ApiResponse<T> = {
   export type UpdateDocumentCategoryPayload =
     Partial<CreateDocumentCategoryPayload>;
   
-  const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
-  
-  const ADMIN_KEY = process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";
-  
-  const RESOURCE = "document-categories";
+  const API_URL = "https://be.government.kidoedu.vn";const RESOURCE = "document-categories";
   
   if (!API_URL) {
     throw new Error(
@@ -65,12 +63,12 @@ export type ApiResponse<T> = {
     const headers: Record<string, string> = {
       Accept: "application/json",
     };
-  
-    if (ADMIN_KEY) {
-      headers["x-admin-key"] = ADMIN_KEY;
-    }
-  
-    if (hasJsonBody) {
+
+  const token = getStoredAdminToken();
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }if (hasJsonBody) {
       headers["Content-Type"] = "application/json";
     }
   

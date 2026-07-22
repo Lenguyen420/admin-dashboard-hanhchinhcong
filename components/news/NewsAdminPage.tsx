@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 import {
@@ -70,32 +70,9 @@ export default function NewsAdminPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [keyword, setKeyword] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const filteredArticles = useMemo(() => {
-    const searchText = keyword.trim().toLowerCase();
-
-    if (!searchText) {
-      return articles;
-    }
-
-    return articles.filter((article) => {
-      const content = [
-        article.id,
-        article.title,
-        article.author,
-        article.desc,
-        article.link,
-        getTypeTitle(article),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return content.includes(searchText);
-    });
-  }, [articles, keyword]);
 
   const totalViews = useMemo(() => {
     return articles.reduce((total, article) => total + (article.views || 0), 0);
@@ -105,11 +82,14 @@ export default function NewsAdminPage() {
     return articles.reduce((total, article) => total + (article.likes || 0), 0);
   }, [articles]);
 
-  const loadArticles = async () => {
+  const loadArticles = useCallback(async (nextKeyword: string) => {
     setLoading(true);
 
     try {
-      const data = await getArticles();
+      const data = await getArticles({
+        keyword: nextKeyword.trim() || undefined,
+        limit: 200,
+      });
       console.log(data);
       setArticles(data.items);
     } catch (error) {
@@ -118,9 +98,9 @@ export default function NewsAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadArticleTypes = async () => {
+  const loadArticleTypes = useCallback(async () => {
     try {
       const data = await getArticleTypes();
       setArticleTypes(data);
@@ -128,12 +108,32 @@ export default function NewsAdminPage() {
       console.error("Lỗi tải loại tin tức:", error);
       setArticleTypes([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void loadArticles();
-    void loadArticleTypes();
-  }, []);
+    const timer = window.setTimeout(() => {
+      void loadArticles("");
+      void loadArticleTypes();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadArticles, loadArticleTypes]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedKeyword(keyword);
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [keyword]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadArticles(debouncedKeyword);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [debouncedKeyword, loadArticles]);
 
   const handleChange = (field: keyof NewsForm, value: string) => {
     setForm((prev) => ({
@@ -199,7 +199,7 @@ export default function NewsAdminPage() {
       }
 
       resetForm();
-      await loadArticles();
+      await loadArticles(debouncedKeyword);
     } catch (error) {
       console.error("Lỗi lưu tin tức:", error);
       alert("Không thể lưu tin tức.");
@@ -217,7 +217,7 @@ export default function NewsAdminPage() {
 
     try {
       await deleteArticle(id);
-      await loadArticles();
+      await loadArticles(debouncedKeyword);
     } catch (error) {
       console.error("Lỗi xóa tin tức:", error);
       alert("Không thể xóa tin tức.");
@@ -249,7 +249,7 @@ export default function NewsAdminPage() {
 
               <button
                 type="button"
-                onClick={loadArticles}
+                onClick={() => void loadArticles(debouncedKeyword)}
                 disabled={loading}
                 className="inline-flex items-center justify-center rounded-xl border border-yellow-300 bg-yellow-400 px-5 py-3 text-sm font-bold text-blue-950 shadow-sm transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -452,8 +452,7 @@ export default function NewsAdminPage() {
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Đang hiển thị {filteredArticles.length} / {articles.length} bài
-                viết.
+                Đang hiển thị {articles.length} bài viết từ kết quả backend.
               </p>
             </div>
 
@@ -493,7 +492,7 @@ export default function NewsAdminPage() {
                   </tr>
                 ) : null}
 
-                {!loading && filteredArticles.length === 0 ? (
+                {!loading && articles.length === 0 ? (
                   <tr>
                     <td
                       colSpan={9}
@@ -505,7 +504,7 @@ export default function NewsAdminPage() {
                 ) : null}
 
                 {!loading
-                  ? filteredArticles.map((article) => (
+                  ? articles.map((article) => (
                       <tr
                         key={article.id}
                         className="text-slate-700 transition hover:bg-blue-50/60"

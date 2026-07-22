@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import {
   AlertCircle,
   Eye,
@@ -13,7 +13,8 @@ import {
   UserRound,
 } from "lucide-react";
 
-import { adminLogin } from "@/services/auth.service";
+import { rememberAccessTokenExpiry } from "@/components/auth/AuthRefreshScheduler";
+import { adminLogin, isApiError, rememberAdminAuth } from "@/services/auth.service";
 
 const DASHBOARD_PATH = "/";
 
@@ -23,9 +24,27 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [retryAfter, setRetryAfter] = useState(0);
+
+  useEffect(() => {
+    if (retryAfter <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setRetryAfter((value) => Math.max(0, value - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [retryAfter]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (retryAfter > 0) {
+      setError(`Vui lòng thử lại sau ${retryAfter} giây.`);
+      return;
+    }
 
     if (!username.trim() || !password.trim()) {
       setError("Vui lòng nhập tên đăng nhập và mật khẩu.");
@@ -36,10 +55,12 @@ export default function LoginForm() {
     setError("");
 
     try {
-      await adminLogin({
+      const data = await adminLogin({
         username: username.trim(),
         password,
       });
+      rememberAdminAuth(data);
+      rememberAccessTokenExpiry(data.expiresIn);
 
       window.location.assign(DASHBOARD_PATH);
     } catch (requestError) {
@@ -47,6 +68,10 @@ export default function LoginForm() {
         requestError instanceof Error
           ? requestError.message
           : "Không thể đăng nhập.";
+
+      if (isApiError(requestError) && requestError.statusCode === 429) {
+        setRetryAfter(requestError.retryAfter ?? 60);
+      }
 
       setError(message);
     } finally {
@@ -71,7 +96,7 @@ export default function LoginForm() {
                 Ủy ban Mặt trận Tổ quốc Việt Nam
               </p>
               <p className="mt-1 truncate text-lg font-bold text-white">
-                Xã Tân Lập - Tỉnh Tây Ninh
+                Xã Lộc Ninh - Tỉnh Tây Ninh
               </p>
             </div>
           </div>
@@ -195,7 +220,7 @@ export default function LoginForm() {
 
               <button
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#b91c1c] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#991b1b] disabled:cursor-not-allowed disabled:bg-[#d98a8a]"
-                disabled={isSubmitting}
+                disabled={isSubmitting || retryAfter > 0}
                 type="submit"
               >
                 {isSubmitting ? (
@@ -211,7 +236,13 @@ export default function LoginForm() {
                     strokeWidth={1.8}
                   />
                 )}
-                <span>{isSubmitting ? "Đang đăng nhập" : "Đăng nhập"}</span>
+                <span>
+                  {retryAfter > 0
+                    ? `Thử lại sau ${retryAfter}s`
+                    : isSubmitting
+                      ? "Đang đăng nhập"
+                      : "Đăng nhập"}
+                </span>
               </button>
             </form>
           </div>

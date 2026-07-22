@@ -1,3 +1,5 @@
+import { getStoredAdminToken } from "@/services/auth.service";
+
 export type AdminRecord = Record<string, unknown>;
 
 export type ApiResponse<T> = {
@@ -23,11 +25,7 @@ export type PaginatedApiResponse<T> = {
   };
 };
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
-
-const ADMIN_KEY =
-  process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";
+const API_URL = "https://be.government.kidoedu.vn";
 
 if (!API_URL) {
   throw new Error(
@@ -40,10 +38,11 @@ function getHeaders(hasJsonBody = false): HeadersInit {
     Accept: "application/json",
   };
 
-  if (ADMIN_KEY) {
-    headers["x-admin-key"] = ADMIN_KEY;
-  }
+  const token = getStoredAdminToken();
 
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   if (hasJsonBody) {
     headers["Content-Type"] = "application/json";
   }
@@ -172,6 +171,24 @@ async function request<T>(
   return handleResponse<T>(response);
 }
 
+function buildQuery(params?: Record<string, string | number | undefined>) {
+  if (!params) {
+    return "";
+  }
+
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  });
+
+  const query = searchParams.toString();
+
+  return query ? `?${query}` : "";
+}
+
 export function getRecordId(
   record: AdminRecord,
 ): string | number | undefined {
@@ -192,8 +209,13 @@ export function getRecordId(
 
 export async function listResource(
   resource: string,
+  params?: {
+    keyword?: string;
+    page?: number;
+    size?: number;
+  },
 ): Promise<AdminRecord[]> {
-  const data = await request<unknown>(`/${resource}`, {
+  const data = await request<unknown>(`/${resource}${buildQuery(params)}`, {
     method: "GET",
     headers: getHeaders(),
     cache: "no-store",

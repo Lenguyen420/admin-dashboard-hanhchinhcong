@@ -17,10 +17,7 @@ export type Ward = {
   provinceCode: string;
 };
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
-  "";
+const API_URL = "https://be.government.kidoedu.vn";
 
 if (!API_URL) {
   throw new Error(

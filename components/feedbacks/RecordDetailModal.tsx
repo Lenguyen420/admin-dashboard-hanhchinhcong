@@ -1,4 +1,5 @@
-import { X } from "lucide-react";
+import { Download, X } from "lucide-react";
+import { getStoredAdminToken } from "@/services/auth.service";
 import formatValue from "./formatValue";
 import { AdminRecord } from "@/services/feedback";
 
@@ -51,6 +52,33 @@ function DetailDateRow({ label, value }: { label: string; value: unknown }) {
       </dd>
     </div>
   );
+}
+
+async function downloadAttachment(id: string, fileName: string) {
+  const token = getStoredAdminToken();
+  const response = await fetch(`https://be.government.kidoedu.vn/attachments/${id}/download`, {
+    method: "GET",
+    headers: {
+      Accept: "*/*",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Không thể tải tệp đính kèm.");
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
 }
 
 export default function RecordDetailModal({
@@ -232,42 +260,56 @@ export default function RecordDetailModal({
                       ? (attachment as AdminRecord)
                       : {};
 
-                  const url = buildFileUrl(item.url);
+                  const id =
+                    typeof item.id === "string" || typeof item.id === "number"
+                      ? String(item.id)
+                      : "";
                   const fileName = item.fileName ?? `Tệp đính kèm ${index + 1}`;
 
                   return (
-                    <a
+                    <button
                       className="flex items-center justify-between gap-3 rounded-md border border-[#dfe3e8] bg-[#f8fafc] px-3 py-2 text-sm text-[#182433] hover:border-[#0d6efd] hover:bg-[#eef6ff]"
-                      href={url}
+                      disabled={!id}
                       key={String(item.id ?? index)}
-                      rel="noreferrer"
-                      target="_blank"
+                      onClick={() => {
+                        if (!id) {
+                          return;
+                        }
+
+                        void downloadAttachment(id, formatValue(fileName)).catch(
+                          (error) => {
+                            alert(
+                              error instanceof Error
+                                ? error.message
+                                : "Không thể tải tệp đính kèm.",
+                            );
+                          },
+                        );
+                      }}
+                      type="button"
                     >
                       <span className="font-medium">
                         {formatValue(fileName)}
                       </span>
-                      <span className="text-xs text-[#667085]">
-                        {formatValue(item.mimeType)}
+                      <span className="inline-flex items-center gap-2 text-xs text-[#667085]">
+                        <Download className="h-4 w-4" />
+                        {id ? formatValue(item.mimeType) : "Thiếu mã tệp"}
                       </span>
-                    </a>
+                    </button>
                   );
                 })}
               </div>
             ) : attachmentUrls.length > 0 ? (
               <div className="space-y-2">
                 {attachmentUrls.map((url, index) => {
-                  const fullUrl = buildFileUrl(url);
-
                   return (
-                    <a
-                      className="block rounded-md border border-[#dfe3e8] bg-[#f8fafc] px-3 py-2 text-sm text-[#182433] hover:border-[#0d6efd] hover:bg-[#eef6ff]"
-                      href={fullUrl}
+                    <div
+                      className="rounded-md border border-[#dfe3e8] bg-[#f8fafc] px-3 py-2 text-sm text-[#667085]"
                       key={`${String(url)}-${index}`}
-                      rel="noreferrer"
-                      target="_blank"
                     >
-                      Tệp đính kèm {index + 1}
-                    </a>
+                      Tệp đính kèm {index + 1}: cần mã tệp để tải qua endpoint
+                      bảo mật.
+                    </div>
                   );
                 })}
               </div>

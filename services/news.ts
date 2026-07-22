@@ -1,3 +1,5 @@
+import { getStoredAdminToken } from "@/services/auth.service";
+
 export type ApiResponse<T> = {
     success: boolean;
     message: string;
@@ -42,6 +44,7 @@ export type ApiResponse<T> = {
     page?: number;
     limit?: number;
     search?: string;
+    keyword?: string;
     typeId?: string;
   };
   
@@ -81,13 +84,9 @@ export type ApiResponse<T> = {
     totalPages: number;
   };
   
-  const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
+  const API_URL = "https://be.government.kidoedu.vn";
 
-const ADMIN_KEY =
-  process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";
-  
-  if (!API_URL) {
+if (!API_URL) {
     throw new Error(
       "Thiếu NEXT_PUBLIC_API_BASE_URL hoặc NEXT_PUBLIC_API_URL. Hãy kiểm tra .env.local và khởi động lại FE.",
     );
@@ -97,11 +96,12 @@ const ADMIN_KEY =
     const headers: Record<string, string> = {
       Accept: "application/json",
     };
-  
-    if (ADMIN_KEY) {
-      headers["x-admin-key"] = ADMIN_KEY;
-    }
-  
+
+  const token = getStoredAdminToken();
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
     if (hasJsonBody) {
       headers["Content-Type"] = "application/json";
     }

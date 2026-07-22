@@ -1,3 +1,5 @@
+import { getStoredAdminToken } from "@/services/auth.service";
+
 export type KnowledgeStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
 export type KnowledgeItem = {
@@ -62,34 +64,31 @@ export type UnansweredQuestionsResult = {
 type UnansweredQuestionsApiResponse =
   | ChatbotUnansweredQuestion[]
   | {
-      data?: ChatbotUnansweredQuestion[];
-      items?: ChatbotUnansweredQuestion[];
-      questions?: ChatbotUnansweredQuestion[];
-      unansweredQuestions?: ChatbotUnansweredQuestion[];
-      pagination?: Partial<UnansweredQuestionsPagination>;
-    };
+    data?: ChatbotUnansweredQuestion[];
+    items?: ChatbotUnansweredQuestion[];
+    questions?: ChatbotUnansweredQuestion[];
+    unansweredQuestions?: ChatbotUnansweredQuestion[];
+    pagination?: Partial<UnansweredQuestionsPagination>;
+  };
 
-const API_URL =
-  process.env.NEXT_PUBLIC_KNOWLEDGE_API_URL?.trim().replace(/\/$/, "") ??
-  "/api/backend";
+const API_URL = "https://externally-tight-serval.ngrok-free.app";
 
 const UNANSWERED_QUESTIONS_PATH =
   process.env.NEXT_PUBLIC_UNANSWERED_QUESTIONS_PATH ??
   "/chat/unanswered-questions";
-
-const ADMIN_KEY =
-  process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";
 
 function getHeaders(
   hasJsonBody = false,
 ): HeadersInit {
   const headers: Record<string, string> = {
     Accept: "application/json",
-
-    // Đổi tên header tại đây nếu AdminKeyGuard dùng tên khác.
-    "x-admin-key": ADMIN_KEY,
   };
 
+  const token = getStoredAdminToken();
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   if (hasJsonBody) {
     headers["Content-Type"] =
       "application/json";
@@ -107,7 +106,7 @@ async function handleResponse<T>(
 
     throw new Error(
       errorBody ||
-        `API request failed: ${response.status}`,
+      `API request failed: ${response.status}`,
     );
   }
 
@@ -292,8 +291,7 @@ export async function getUnansweredQuestions(
   const queryString = searchParams.toString();
 
   const response = await fetch(
-    `${API_URL}${UNANSWERED_QUESTIONS_PATH}${
-      queryString ? `?${queryString}` : ""
+    `${API_URL}${UNANSWERED_QUESTIONS_PATH}${queryString ? `?${queryString}` : ""
     }`,
     {
       method: "GET",

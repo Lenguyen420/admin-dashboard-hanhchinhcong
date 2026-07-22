@@ -120,6 +120,8 @@ export function ResourceCrudPanel({
     kind: "info",
     message: "Đang tải dữ liệu từ backend...",
   });
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const usesServerSearch = config.resource === "feedbacks";
 
   const getLoadSuccessMessage = useCallback(
     (data: AdminRecord[]) => {
@@ -136,11 +138,19 @@ export function ResourceCrudPanel({
     },
     [config.resource],
   );
-  async function loadItems() {
+  async function loadItems(nextQuery = usesServerSearch ? debouncedQuery : "") {
     setIsLoading(true);
 
     try {
-      const data = await listResource(config.resource);
+      const data = await listResource(
+        config.resource,
+        usesServerSearch
+          ? {
+              keyword: nextQuery.trim() || undefined,
+              size: 200,
+            }
+          : undefined,
+      );
       console.log("list record", data);
       setItems(data);
 
@@ -165,7 +175,7 @@ export function ResourceCrudPanel({
 
     async function loadInitialItems() {
       try {
-        const data = await listResource(config.resource);
+      const data = await listResource(config.resource);
         console.log("list record", data);
 
         if (!isMounted) {
@@ -202,7 +212,79 @@ export function ResourceCrudPanel({
       isMounted = false;
     };
   }, [config.resource, getLoadErrorMessage, getLoadSuccessMessage]);
+
+  useEffect(() => {
+    if (!usesServerSearch) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [query, usesServerSearch]);
+
+  useEffect(() => {
+    if (!usesServerSearch) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function searchItems() {
+      setIsLoading(true);
+
+      try {
+        const data = await listResource(config.resource, {
+          keyword: debouncedQuery.trim() || undefined,
+          size: 200,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setItems(data);
+        setNotice({
+          kind: "success",
+          message: getLoadSuccessMessage(data),
+        });
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setItems([]);
+        setNotice({
+          kind: "error",
+          message: getLoadErrorMessage(error),
+        });
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void searchItems();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    config.resource,
+    debouncedQuery,
+    getLoadErrorMessage,
+    getLoadSuccessMessage,
+    usesServerSearch,
+  ]);
+
   const filteredItems = useMemo(() => {
+    if (usesServerSearch) {
+      return items;
+    }
+
     const keyword = query.trim().toLowerCase();
 
     if (!keyword) {
@@ -212,7 +294,7 @@ export function ResourceCrudPanel({
     return items.filter((item) =>
       JSON.stringify(item).toLowerCase().includes(keyword),
     );
-  }, [items, query]);
+  }, [items, query, usesServerSearch]);
 
   async function submitCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -350,7 +432,7 @@ export function ResourceCrudPanel({
                 aria-label="Tải lại"
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-300 bg-yellow-400 px-5 py-3 text-sm font-bold text-blue-950 shadow-sm transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isLoading}
-                onClick={loadItems}
+                onClick={() => void loadItems()}
                 type="button"
               >
                 {isLoading ? (

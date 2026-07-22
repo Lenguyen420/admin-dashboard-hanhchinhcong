@@ -23,7 +23,7 @@ type ChatApiResponse = {
 
 const CHAT_API_BASE_URL =
   process.env.NEXT_PUBLIC_CHAT_API_BASE_URL?.replace(/\/$/, "") ??
-  "http://localhost:3010";
+  "https://externally-tight-serval.ngrok-free.app";
 
 function readAnswer(payload: ChatApiResponse) {
   const answer =
@@ -109,7 +109,7 @@ export default function CitizenAssistantChat() {
           id: `assistant-error-${Date.now()}`,
           role: "assistant",
           content:
-            "Chưa kết nối được API trợ lý. Vui lòng kiểm tra backend ở http://localhost:3010/chat/ask hoặc cấu hình NEXT_PUBLIC_CHAT_API_BASE_URL.",
+            "Chưa kết nối được API trợ lý. Vui lòng kiểm tra backend chatbot hoặc cấu hình NEXT_PUBLIC_CHAT_API_BASE_URL.",
         },
       ]);
     } finally {

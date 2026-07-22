@@ -1,3 +1,5 @@
+import { getStoredAdminToken } from "@/services/auth.service";
+
 export type ApiResponse<T> = {
     success: boolean;
     message: string;
@@ -55,13 +57,7 @@ export type ApiResponse<T> = {
   
   export type UpdateUserPayload = Partial<CreateUserPayload>;
   
-  const API_URL =
-    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
-    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
-    "";
-  
-  const ADMIN_KEY = process.env.NEXT_PUBLIC_ADMIN_KEY ?? "";
-  
+  const API_URL = "https://be.government.kidoedu.vn";
   const RESOURCE = "users";
   
   if (!API_URL) {
@@ -74,11 +70,12 @@ export type ApiResponse<T> = {
     const headers: Record<string, string> = {
       Accept: "application/json",
     };
-  
-    if (ADMIN_KEY) {
-      headers["x-admin-key"] = ADMIN_KEY;
-    }
-  
+
+  const token = getStoredAdminToken();
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
     if (hasJsonBody) {
       headers["Content-Type"] = "application/json";
     }
@@ -253,4 +250,61 @@ export type ApiResponse<T> = {
       method: "DELETE",
       headers: getHeaders(),
     });
+  }
+
+  export async function updateUserStatus(
+    id: string | number,
+    payload: { status: string },
+  ): Promise<User> {
+    const data = await request<unknown>(`/${RESOURCE}/${id}/status`, {
+      method: "PATCH",
+      headers: getHeaders(true),
+      body: JSON.stringify(payload),
+    });
+
+    return normalizeSingleResponse<User>(data);
+  }
+
+  export async function resetUserPassword(
+    id: string | number,
+    payload: { password?: string } = {},
+  ): Promise<unknown> {
+    return request<unknown>(`/${RESOURCE}/${id}/reset-password`, {
+      method: "POST",
+      headers: getHeaders(true),
+      body: JSON.stringify(payload),
+    });
+  }
+
+  export async function updateUserPermissions(
+    id: string | number,
+    payload: { permissions: unknown },
+  ): Promise<User> {
+    const data = await request<unknown>(`/${RESOURCE}/${id}/permissions`, {
+      method: "PUT",
+      headers: getHeaders(true),
+      body: JSON.stringify(payload),
+    });
+
+    return normalizeSingleResponse<User>(data);
+  }
+
+  export async function getUserOptions(): Promise<User[]> {
+    const data = await request<unknown>("/user-options", {
+      method: "GET",
+      headers: getHeaders(),
+      cache: "no-store",
+    });
+
+    return normalizeListResponse<User>(data);
+  }
+
+  export async function getRoles(): Promise<unknown[]> {
+    const data = await request<unknown>("/roles", {
+      method: "GET",
+      headers: getHeaders(),
+      cache: "no-store",
+    });
+
+    return normalizeListResponse<unknown>(data);
   }
