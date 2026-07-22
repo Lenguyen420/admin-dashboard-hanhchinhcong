@@ -1,4 +1,4 @@
-import { getStoredAdminToken } from "@/services/auth.service";
+import { ensureStoredAdminToken } from "@/services/auth.service";
 
 export type AdminRecord = Record<string, unknown>;
 
@@ -33,12 +33,11 @@ if (!API_URL) {
   );
 }
 
-function getHeaders(hasJsonBody = false): HeadersInit {
+async function getHeaders(hasJsonBody = false): Promise<HeadersInit> {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
-
-  const token = getStoredAdminToken();
+const token = await ensureStoredAdminToken();
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -217,7 +216,7 @@ export async function listResource(
 ): Promise<AdminRecord[]> {
   const data = await request<unknown>(`/${resource}${buildQuery(params)}`, {
     method: "GET",
-    headers: getHeaders(),
+    headers: await getHeaders(),
     cache: "no-store",
   });
 
@@ -232,7 +231,7 @@ export async function getResourceById(
     `/${resource}/${id}`,
     {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     },
   );
@@ -246,7 +245,7 @@ export async function createResource(
 ): Promise<AdminRecord> {
   const data = await request<unknown>(`/${resource}`, {
     method: "POST",
-    headers: getHeaders(true),
+    headers: await getHeaders(true),
     body: JSON.stringify(payload),
   });
 
@@ -262,7 +261,7 @@ export async function updateResource(
     `/${resource}/${id}`,
     {
       method: "PATCH",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     },
   );
@@ -276,6 +275,6 @@ export async function deleteResource(
 ): Promise<void> {
   await request<unknown>(`/${resource}/${id}`, {
     method: "DELETE",
-    headers: getHeaders(),
+    headers: await getHeaders(),
   });
 }

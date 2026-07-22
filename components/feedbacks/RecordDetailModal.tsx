@@ -1,5 +1,5 @@
 import { Download, X } from "lucide-react";
-import { getStoredAdminToken } from "@/services/auth.service";
+import { ensureStoredAdminToken } from "@/services/auth.service";
 import formatValue from "./formatValue";
 import { AdminRecord } from "@/services/feedback";
 
@@ -55,7 +55,7 @@ function DetailDateRow({ label, value }: { label: string; value: unknown }) {
 }
 
 async function downloadAttachment(id: string, fileName: string) {
-  const token = getStoredAdminToken();
+  const token = await ensureStoredAdminToken();
   const response = await fetch(`https://be.government.kidoedu.vn/attachments/${id}/download`, {
     method: "GET",
     headers: {

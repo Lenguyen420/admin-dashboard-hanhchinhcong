@@ -1,4 +1,4 @@
-import { getStoredAdminToken } from "@/services/auth.service";
+import { ensureStoredAdminToken } from "@/services/auth.service";
 
 export type ApiResponse<T> = {
     success: boolean;
@@ -92,12 +92,11 @@ if (!API_URL) {
     );
   }
   
-  function getHeaders(hasJsonBody = false): HeadersInit {
+  async function getHeaders(hasJsonBody = false): Promise<HeadersInit> {
     const headers: Record<string, string> = {
       Accept: "application/json",
     };
-
-  const token = getStoredAdminToken();
+const token = await ensureStoredAdminToken();
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -265,7 +264,7 @@ if (!API_URL) {
   export async function getArticleTypes(): Promise<ArticleType[]> {
     const data = await request<unknown>("/article-types", {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     });
   
@@ -275,7 +274,7 @@ if (!API_URL) {
   export async function getArticleTypeById(id: string): Promise<ArticleType> {
     const data = await request<unknown>(`/article-types/${id}`, {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     });
   
@@ -287,7 +286,7 @@ if (!API_URL) {
   ): Promise<ArticleType> {
     const data = await request<unknown>("/article-types", {
       method: "POST",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     });
   
@@ -300,7 +299,7 @@ if (!API_URL) {
   ): Promise<ArticleType> {
     const data = await request<unknown>(`/article-types/${id}`, {
       method: "PATCH",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     });
   
@@ -310,7 +309,7 @@ if (!API_URL) {
   export async function deleteArticleType(id: string): Promise<void> {
     await request<unknown>(`/article-types/${id}`, {
       method: "DELETE",
-      headers: getHeaders(),
+      headers: await getHeaders(),
     });
   }
   
@@ -323,7 +322,7 @@ if (!API_URL) {
   
     const data = await request<unknown>(`/articles${query}`, {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     });
   
@@ -333,7 +332,7 @@ if (!API_URL) {
   export async function getArticleById(id: string): Promise<Article> {
     const data = await request<unknown>(`/articles/${id}`, {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     });
   
@@ -345,7 +344,7 @@ if (!API_URL) {
   ): Promise<Article> {
     const data = await request<unknown>("/articles", {
       method: "POST",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     });
   
@@ -358,7 +357,7 @@ if (!API_URL) {
   ): Promise<Article> {
     const data = await request<unknown>(`/articles/${id}`, {
       method: "PATCH",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     });
   
@@ -368,7 +367,7 @@ if (!API_URL) {
   export async function deleteArticle(id: string): Promise<void> {
     await request<unknown>(`/articles/${id}`, {
       method: "DELETE",
-      headers: getHeaders(),
+      headers: await getHeaders(),
     });
   }
   
@@ -380,7 +379,7 @@ if (!API_URL) {
   ): Promise<Article> {
     const data = await request<unknown>(`/articles/${id}/views`, {
       method: "POST",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     });
   
@@ -393,7 +392,7 @@ if (!API_URL) {
   ): Promise<Article> {
     const data = await request<unknown>(`/articles/${id}/like`, {
       method: "PATCH",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     });
   
@@ -405,7 +404,7 @@ if (!API_URL) {
   ): Promise<ArticleInteraction[]> {
     const data = await request<unknown>(`/articles/${id}/interactions`, {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     });
   
@@ -420,7 +419,7 @@ if (!API_URL) {
       `/articles/${articleId}/interactions/${userId}`,
       {
         method: "GET",
-        headers: getHeaders(),
+        headers: await getHeaders(),
         cache: "no-store",
       },
     );

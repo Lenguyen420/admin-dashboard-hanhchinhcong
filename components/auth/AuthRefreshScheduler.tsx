@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { rememberAdminAuth } from "@/services/auth.service";
+import {
+  ensureStoredAdminToken,
+  rememberAdminAuth,
+} from "@/services/auth.service";
 
 const EXPIRES_AT_KEY = "admin_access_expires_at";
 const REFRESH_SKEW_MS = 60 * 1000;
@@ -29,7 +32,7 @@ async function refreshSession() {
       window.location.assign("/login");
     }
 
-    return;
+    return false;
   }
 
   const body = (await response.json()) as {
@@ -52,6 +55,8 @@ async function refreshSession() {
       String(Date.now() + expiresIn * 1000),
     );
   }
+
+  return true;
 }
 
 export function rememberAccessTokenExpiry(expiresIn?: number | null) {
@@ -95,7 +100,19 @@ export default function AuthRefreshScheduler() {
       }, delay);
     };
 
-    schedule();
+    const bootstrap = async () => {
+      try {
+        await ensureStoredAdminToken();
+      } catch {
+        return;
+      }
+
+      if (!cancelled) {
+        schedule();
+      }
+    };
+
+    void bootstrap();
 
     return () => {
       cancelled = true;

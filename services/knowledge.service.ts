@@ -1,4 +1,4 @@
-import { getStoredAdminToken } from "@/services/auth.service";
+import { ensureStoredAdminToken } from "@/services/auth.service";
 
 export type KnowledgeStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
@@ -77,15 +77,15 @@ const UNANSWERED_QUESTIONS_PATH =
   process.env.NEXT_PUBLIC_UNANSWERED_QUESTIONS_PATH ??
   "/chat/unanswered-questions";
 
-function getHeaders(
+async function getHeaders(
   hasJsonBody = false,
-): HeadersInit {
+): Promise<HeadersInit> {
   const headers: Record<string, string> = {
     Accept: "application/json",
     "ngrok-skip-browser-warning": "true",
   };
 
-  const token = getStoredAdminToken();
+  const token = await ensureStoredAdminToken();
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -174,7 +174,7 @@ export async function getKnowledgeItems(): Promise<
     `${API_URL}/admin/knowledge`,
     {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     },
   );
@@ -191,7 +191,7 @@ export async function getKnowledgeById(
     `${API_URL}/admin/knowledge/${id}`,
     {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     },
   );
@@ -208,7 +208,7 @@ export async function createKnowledge(
     `${API_URL}/admin/knowledge`,
     {
       method: "POST",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     },
   );
@@ -226,7 +226,7 @@ export async function updateKnowledge(
     `${API_URL}/admin/knowledge/${id}`,
     {
       method: "PATCH",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     },
   );
@@ -243,7 +243,7 @@ export async function publishKnowledge(
     `${API_URL}/admin/knowledge/${id}/publish`,
     {
       method: "POST",
-      headers: getHeaders(),
+      headers: await getHeaders(),
     },
   );
 
@@ -259,7 +259,7 @@ export async function archiveKnowledge(
     `${API_URL}/admin/knowledge/${id}/archive`,
     {
       method: "POST",
-      headers: getHeaders(),
+      headers: await getHeaders(),
     },
   );
 
@@ -296,7 +296,7 @@ export async function getUnansweredQuestions(
     }`,
     {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     },
   );

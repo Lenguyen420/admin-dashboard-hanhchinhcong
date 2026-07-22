@@ -185,6 +185,52 @@ export function getStoredRefreshToken(): string {
     return window.localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? "";
 }
 
+let refreshTokenPromise: Promise<string> | null = null;
+
+export async function ensureStoredAdminToken(): Promise<string> {
+    const existingToken = getStoredAdminToken();
+
+    if (existingToken) {
+        return existingToken;
+    }
+
+    if (!refreshTokenPromise) {
+        refreshTokenPromise = fetch(`${API_URL}/refresh`, {
+            method: "POST",
+            headers: getHeaders(),
+            cache: "no-store",
+            credentials: "same-origin",
+        })
+            .then(async (response) => {
+                const data = await handleResponse<unknown>(response);
+                const authData = unwrapApiResponse<AdminLoginData>(
+                    data as ApiResponse<AdminLoginData>,
+                );
+
+                rememberAdminAuth(authData);
+
+                return getAdminToken(authData);
+            })
+            .catch((error) => {
+                clearAdminAuth();
+
+                if (
+                    typeof window !== "undefined" &&
+                    window.location.pathname !== "/login"
+                ) {
+                    window.location.assign("/login");
+                }
+
+                throw error;
+            })
+            .finally(() => {
+                refreshTokenPromise = null;
+            });
+    }
+
+    return refreshTokenPromise;
+}
+
 export function rememberAdminAuth(data: AdminLoginData) {
     if (typeof window === "undefined") {
         return;

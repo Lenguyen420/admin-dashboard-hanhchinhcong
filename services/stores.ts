@@ -1,4 +1,4 @@
-import { getStoredAdminToken } from "@/services/auth.service";
+import { ensureStoredAdminToken } from "@/services/auth.service";
 
 export type ApiResponse<T> = {
     success: boolean;
@@ -90,12 +90,11 @@ export type ApiResponse<T> = {
     );
   }
   
-  function getHeaders(hasJsonBody = false): HeadersInit {
+  async function getHeaders(hasJsonBody = false): Promise<HeadersInit> {
     const headers: Record<string, string> = {
       Accept: "application/json",
     };
-
-  const token = getStoredAdminToken();
+const token = await ensureStoredAdminToken();
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -222,7 +221,7 @@ export type ApiResponse<T> = {
   
     const data = await request<unknown>(`/${RESOURCE}${queryString}`, {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     });
   
@@ -233,7 +232,7 @@ export type ApiResponse<T> = {
   export async function getStoreById(id: string | number): Promise<Store> {
     const data = await request<unknown>(`/${RESOURCE}/${id}`, {
       method: "GET",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       cache: "no-store",
     });
   
@@ -246,7 +245,7 @@ export type ApiResponse<T> = {
   ): Promise<Store> {
     const data = await request<unknown>(`/${RESOURCE}`, {
       method: "POST",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     });
   
@@ -260,7 +259,7 @@ export type ApiResponse<T> = {
   ): Promise<Store> {
     const data = await request<unknown>(`/${RESOURCE}/${id}`, {
       method: "PATCH",
-      headers: getHeaders(true),
+      headers: await getHeaders(true),
       body: JSON.stringify(payload),
     });
   
@@ -271,6 +270,6 @@ export type ApiResponse<T> = {
   export async function deleteStore(id: string | number): Promise<void> {
     await request<unknown>(`/${RESOURCE}/${id}`, {
       method: "DELETE",
-      headers: getHeaders(),
+      headers: await getHeaders(),
     });
   }

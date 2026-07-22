@@ -1,4 +1,4 @@
-import { getStoredAdminToken } from "@/services/auth.service";
+import { ensureStoredAdminToken } from "@/services/auth.service";
 
 export type EditorImageUploadResponse = {
   error: number;
@@ -35,7 +35,7 @@ export async function uploadEditorImage(
 
   const formData = new FormData();
   formData.set("file", file);
-  const token = getStoredAdminToken();
+  const token = await ensureStoredAdminToken();
 
   const response = await fetch(`${API_URL}/upload_image_api`, {
     method: "POST",

@@ -1,4 +1,4 @@
-import { getStoredAdminToken } from "@/services/auth.service";
+import { ensureStoredAdminToken } from "@/services/auth.service";
 
 export type AdminRecord = Record<string, unknown>;
 
@@ -58,12 +58,11 @@ function buildQuery(query?: ListQuery) {
   return queryString ? `?${queryString}` : "";
 }
 
-function getHeaders(hasJsonBody = false): HeadersInit {
+async function getHeaders(hasJsonBody = false): Promise<HeadersInit> {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
-
-  const token = getStoredAdminToken();
+  const token = await ensureStoredAdminToken();
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -174,7 +173,7 @@ export async function listAdminResource(
 ): Promise<AdminRecord[]> {
   const body = await adminRequest<unknown>(`/${resource}${buildQuery(query)}`, {
     method: "GET",
-    headers: getHeaders(),
+    headers: await getHeaders(),
     cache: "no-store",
   });
 
@@ -187,7 +186,7 @@ export async function getAdminResource(
 ): Promise<AdminRecord> {
   const body = await adminRequest<unknown>(`/${resource}/${id}`, {
     method: "GET",
-    headers: getHeaders(),
+    headers: await getHeaders(),
     cache: "no-store",
   });
 
@@ -200,7 +199,7 @@ export async function createAdminResource(
 ): Promise<AdminRecord> {
   const body = await adminRequest<unknown>(`/${resource}`, {
     method: "POST",
-    headers: getHeaders(true),
+    headers: await getHeaders(true),
     body: JSON.stringify(payload),
   });
 
@@ -215,7 +214,7 @@ export async function updateAdminResource(
 ): Promise<AdminRecord> {
   const body = await adminRequest<unknown>(`/${resource}/${id}`, {
     method,
-    headers: getHeaders(true),
+    headers: await getHeaders(true),
     body: JSON.stringify(payload),
   });
 
@@ -228,14 +227,14 @@ export async function deleteAdminResource(
 ): Promise<void> {
   await adminRequest<unknown>(`/${resource}/${id}`, {
     method: "DELETE",
-    headers: getHeaders(),
+    headers: await getHeaders(),
   });
 }
 
 export async function uploadAttachment(file: File): Promise<AdminRecord> {
   const formData = new FormData();
   formData.set("file", file);
-  const token = getStoredAdminToken();
+  const token = await ensureStoredAdminToken();
 
   const body = await adminRequest<unknown>("/attachments/upload", {
     method: "POST",
@@ -250,7 +249,7 @@ export async function uploadAttachment(file: File): Promise<AdminRecord> {
 }
 
 export async function downloadBlob(path: string): Promise<Blob> {
-  const token = getStoredAdminToken();
+  const token = await ensureStoredAdminToken();
 
   const response = await fetch(`${API_URL}${path}`, {
     method: "GET",

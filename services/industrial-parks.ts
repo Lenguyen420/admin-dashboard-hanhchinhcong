@@ -1,4 +1,4 @@
-import { getStoredAdminToken } from "@/services/auth.service";
+import { ensureStoredAdminToken } from "@/services/auth.service";
 
 export type ApiResponse<T> = {
   success: boolean;
@@ -107,12 +107,11 @@ if (!API_URL) {
   );
 }
 
-function getHeaders(hasJsonBody = false): HeadersInit {
+async function getHeaders(hasJsonBody = false): Promise<HeadersInit> {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
-
-  const token = getStoredAdminToken();
+const token = await ensureStoredAdminToken();
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -241,7 +240,7 @@ export async function getIndustrialParks(
 
   const data = await request<unknown>(`/${RESOURCE}${queryString}`, {
     method: "GET",
-    headers: getHeaders(),
+    headers: await getHeaders(),
     cache: "no-store",
   });
 
@@ -254,7 +253,7 @@ export async function getIndustrialParkById(
 ): Promise<IndustrialPark> {
   const data = await request<unknown>(`/${RESOURCE}/${id}`, {
     method: "GET",
-    headers: getHeaders(),
+    headers: await getHeaders(),
     cache: "no-store",
   });
 
@@ -267,7 +266,7 @@ export async function createIndustrialPark(
 ): Promise<IndustrialPark> {
   const data = await request<unknown>(`/${RESOURCE}`, {
     method: "POST",
-    headers: getHeaders(true),
+    headers: await getHeaders(true),
     body: JSON.stringify(payload),
   });
 
@@ -281,7 +280,7 @@ export async function updateIndustrialPark(
 ): Promise<IndustrialPark> {
   const data = await request<unknown>(`/${RESOURCE}/${id}`, {
     method: "PATCH",
-    headers: getHeaders(true),
+    headers: await getHeaders(true),
     body: JSON.stringify(payload),
   });
 
@@ -294,6 +293,6 @@ export async function deleteIndustrialPark(
 ): Promise<void> {
   await request<unknown>(`/${RESOURCE}/${id}`, {
     method: "DELETE",
-    headers: getHeaders(),
+    headers: await getHeaders(),
   });
 }
