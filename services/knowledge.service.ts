@@ -72,7 +72,6 @@ type UnansweredQuestionsApiResponse =
   };
 
 const API_URL = "https://externally-tight-serval.ngrok-free.app";
-const KNOWLEDGE_ADMIN_PATH = "/api/knowledge";
 
 const UNANSWERED_QUESTIONS_PATH =
   process.env.NEXT_PUBLIC_UNANSWERED_QUESTIONS_PATH ??
@@ -172,7 +171,7 @@ export async function getKnowledgeItems(): Promise<
   KnowledgeItem[]
 > {
   const response = await fetch(
-    KNOWLEDGE_ADMIN_PATH,
+    `${API_URL}/admin/knowledge`,
     {
       method: "GET",
       headers: getHeaders(),
@@ -189,7 +188,7 @@ export async function getKnowledgeById(
   id: string,
 ): Promise<KnowledgeItem> {
   const response = await fetch(
-    `${KNOWLEDGE_ADMIN_PATH}/${id}`,
+    `${API_URL}/admin/knowledge/${id}`,
     {
       method: "GET",
       headers: getHeaders(),
@@ -206,7 +205,7 @@ export async function createKnowledge(
   payload: CreateKnowledgePayload,
 ): Promise<KnowledgeItem> {
   const response = await fetch(
-    KNOWLEDGE_ADMIN_PATH,
+    `${API_URL}/admin/knowledge`,
     {
       method: "POST",
       headers: getHeaders(true),
@@ -224,7 +223,7 @@ export async function updateKnowledge(
   payload: UpdateKnowledgePayload,
 ): Promise<KnowledgeItem> {
   const response = await fetch(
-    `${KNOWLEDGE_ADMIN_PATH}/${id}`,
+    `${API_URL}/admin/knowledge/${id}`,
     {
       method: "PATCH",
       headers: getHeaders(true),
@@ -241,7 +240,7 @@ export async function publishKnowledge(
   id: string,
 ): Promise<KnowledgeItem> {
   const response = await fetch(
-    `${KNOWLEDGE_ADMIN_PATH}/${id}/publish`,
+    `${API_URL}/admin/knowledge/${id}/publish`,
     {
       method: "POST",
       headers: getHeaders(),
@@ -257,7 +256,7 @@ export async function archiveKnowledge(
   id: string,
 ): Promise<KnowledgeItem> {
   const response = await fetch(
-    `${KNOWLEDGE_ADMIN_PATH}/${id}/archive`,
+    `${API_URL}/admin/knowledge/${id}/archive`,
     {
       method: "POST",
       headers: getHeaders(),
