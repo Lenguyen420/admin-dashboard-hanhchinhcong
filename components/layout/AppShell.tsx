@@ -1,10 +1,35 @@
+"use client";
+
 import { Bell, Grid2X2, Moon, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import LogoutButton from "@/components/auth/LogoutButton";
+import {
+  getAdminSystemRole,
+  getStoredAdminToken,
+  getStoredAdminUser,
+  type AdminUser,
+} from "@/services/auth.service";
+import {
+  getTaskNotifications,
+  markTaskNotificationRead,
+  type TaskNotification,
+} from "@/services/task-management";
 
-const navItems = [
+const ROLE_LABELS: Record<string, string> = {
+  USER: "Người dùng",
+  ADMIN: "Quản trị viên",
+  WARD_CHAIRMAN: "Chủ tịch phường",
+  NEIGHBORHOOD_HEAD: "Trưởng khu phố",
+};
+
+const navItems: Array<{
+  label: string;
+  href: string;
+  roles?: string[];
+}> = [
   {
     label: "Tổng quan",
     href: "/",
@@ -20,6 +45,7 @@ const navItems = [
   {
     label: "Người dùng",
     href: "/admin/users",
+    roles: ["ADMIN"],
   },
   {
     label: "Tin tức",
@@ -32,6 +58,22 @@ const navItems = [
   {
     label: "Phòng họp",
     href: "/admin/meeting-rooms",
+    roles: ["WARD_CHAIRMAN", "NEIGHBORHOOD_HEAD"],
+  },
+  {
+    label: "Giao việc",
+    href: "/admin/assigned-tasks",
+    roles: ["ADMIN", "WARD_CHAIRMAN"],
+  },
+  {
+    label: "Nhận việc",
+    href: "/admin/received-tasks",
+    roles: ["NEIGHBORHOOD_HEAD"],
+  },
+  {
+    label: "Báo cáo điểm",
+    href: "/admin/point-report",
+    roles: ["ADMIN", "WARD_CHAIRMAN", "NEIGHBORHOOD_HEAD"],
   },
   {
     label: "Tài liệu",
@@ -82,6 +124,13 @@ const navItems = [
     href: "/admin/attachments",
   },
 ];
+
+function canSeeItem(role: string, itemRoles?: string[]) {
+  if (!itemRoles) return role !== "USER";
+  if (role === "ADMIN" && itemRoles.includes("ADMIN")) return true;
+
+  return itemRoles.includes(role);
+}
 
 function PartyFlag() {
   return (
@@ -234,7 +283,106 @@ function TopOffer() {
   );
 }
 
-function Header() {
+function Header({ role, user }: { role: string; user: AdminUser | null }) {
+  const [notifications, setNotifications] = useState<TaskNotification[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!["WARD_CHAIRMAN", "NEIGHBORHOOD_HEAD"].includes(role)) {
+      return;
+    }
+
+    let mounted = true;
+
+    async function loadNotifications() {
+      try {
+        const data = await getTaskNotifications();
+
+        if (mounted) {
+          setNotifications(data);
+        }
+      } catch {
+        if (mounted) {
+          setNotifications([]);
+        }
+      }
+    }
+
+    void loadNotifications();
+
+    const intervalId = window.setInterval(() => {
+      void loadNotifications();
+    }, 30000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [role]);
+
+  useEffect(() => {
+    if (!["WARD_CHAIRMAN", "NEIGHBORHOOD_HEAD"].includes(role)) {
+      return;
+    }
+
+    let disconnected = false;
+    let socket: { disconnect: () => void; on: (event: string, callback: (payload: TaskNotification) => void) => void } | null = null;
+
+    import("socket.io-client")
+      .then(({ io }) => {
+        if (disconnected) return;
+
+        socket = io("https://be.government.kidoedu.vn/task-assignments", {
+          auth: { token: getStoredAdminToken() },
+          extraHeaders: {
+            Authorization: `Bearer ${getStoredAdminToken()}`,
+          },
+          transports: ["websocket", "polling"],
+        });
+
+        socket.on("notification-created", (notification: TaskNotification) => {
+          setNotifications((current) => [notification, ...current]);
+
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("admin-toast", {
+                detail: notification.title ?? notification.message ?? "Có thông báo mới",
+              }),
+            );
+          }
+        });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      disconnected = true;
+      socket?.disconnect();
+    };
+  }, [role]);
+
+  const unreadCount = notifications.filter((item) => !item.readAt && !item.isRead).length;
+
+  async function handleRead(notification: TaskNotification) {
+    const id = String(notification.id ?? "");
+
+    if (!id) return;
+
+    try {
+      await markTaskNotificationRead(id);
+      setNotifications((current) =>
+        current.map((item) =>
+          String(item.id ?? "") === id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item,
+        ),
+      );
+    } catch {
+      setNotifications((current) =>
+        current.map((item) =>
+          String(item.id ?? "") === id ? { ...item, isRead: true } : item,
+        ),
+      );
+    }
+  }
+
   return (
     <header
       className="
@@ -256,9 +404,64 @@ function Header() {
             <IconButton icon={Moon} label="Chế độ tối" />
 
             <div className="relative">
-              <IconButton icon={Bell} label="Thông báo" />
+              <button
+                aria-label="Thông báo"
+                className="
+                  flex h-9 w-9 items-center justify-center
+                  rounded-lg border border-white/15
+                  bg-white/10 text-white/90
+                  transition
+                  hover:bg-white/20
+                  hover:text-white
+                "
+                onClick={() => setIsOpen((value) => !value)}
+                title="Thông báo"
+                type="button"
+              >
+                <Bell className="h-[18px] w-[18px]" strokeWidth={1.8} />
+              </button>
 
-              <span className="absolute right-2 top-1.5 h-2.5 w-2.5 rounded-full border border-white bg-[#ffd21f]" />
+              {unreadCount > 0 ? (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-white bg-[#ffd21f] px-1 text-[10px] font-black text-red-900">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              ) : null}
+
+              {isOpen ? (
+                <div className="absolute right-0 top-11 z-50 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl">
+                  <div className="border-b border-slate-100 px-4 py-3">
+                    <p className="text-sm font-extrabold text-blue-950">
+                      Thông báo giao việc
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {unreadCount} thông báo chưa đọc
+                    </p>
+                  </div>
+                  <div className="max-h-96 overflow-auto">
+                    {notifications.length > 0 ? (
+                      notifications.slice(0, 8).map((notification, index) => (
+                        <button
+                          className="block w-full border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50"
+                          key={String(notification.id ?? index)}
+                          onClick={() => void handleRead(notification)}
+                          type="button"
+                        >
+                          <span className="block text-sm font-bold text-blue-950">
+                            {String(notification.title ?? notification.type ?? "Thông báo")}
+                          </span>
+                          <span className="mt-1 line-clamp-2 block text-xs leading-5 text-slate-600">
+                            {String(notification.message ?? notification.content ?? "")}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-8 text-center text-sm text-slate-500">
+                        Chưa có thông báo.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <IconButton icon={Grid2X2} label="Ứng dụng" />
@@ -278,8 +481,12 @@ function Header() {
             </div>
 
             <div className="leading-tight">
-              <p className="text-sm font-semibold text-white">Quản trị viên</p>
-              <p className="text-xs text-yellow-100/90">Administrator</p>
+              <p className="text-sm font-semibold text-white">
+                {user?.name || user?.username || ROLE_LABELS[role] || "Người dùng"}
+              </p>
+              <p className="text-xs text-yellow-100/90">
+                {ROLE_LABELS[role] ?? role}
+              </p>
             </div>
 
             <LogoutButton />
@@ -290,7 +497,9 @@ function Header() {
   );
 }
 
-function NavBar({ activeHref }: { activeHref: string }) {
+function NavBar({ activeHref, role }: { activeHref: string; role: string }) {
+  const visibleItems = navItems.filter((item) => canSeeItem(role, item.roles));
+
   return (
     <nav
       className="
@@ -300,7 +509,7 @@ function NavBar({ activeHref }: { activeHref: string }) {
     >
       <div className="mx-auto max-w-[1288px] overflow-x-auto px-4">
         <div className="flex min-w-max items-center gap-1">
-          {navItems.map(({ label, href }) => {
+          {visibleItems.map(({ label, href }) => {
             const active =
               href === "/"
                 ? activeHref === "/"
@@ -341,11 +550,23 @@ export default function AppShell({
   activeHref?: string;
   children: ReactNode;
 }) {
+  const [user, setUser] = useState<AdminUser | null>(null);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setUser(getStoredAdminUser());
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  const role = useMemo(() => getAdminSystemRole(user), [user]);
+
   return (
     <div className="min-h-screen bg-[#f7f2ef] text-[#182433]">
       <TopOffer />
-      <Header />
-      <NavBar activeHref={activeHref} />
+      <Header role={role} user={user} />
+      <NavBar activeHref={activeHref} role={role} />
 
       <main className="mx-auto w-full max-w-[1288px] px-4 py-6">
         {children}

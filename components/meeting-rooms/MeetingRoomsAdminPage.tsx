@@ -98,7 +98,13 @@ function parseOptionalNumber(value: string) {
 }
 
 function getErrorText(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+  if (error instanceof Error && error.message) {
+    return error.message.includes("403")
+      ? "Bạn không có quyền sử dụng chức năng này"
+      : error.message;
+  }
+
+  return fallback;
 }
 
 function normalizeText(value: string) {

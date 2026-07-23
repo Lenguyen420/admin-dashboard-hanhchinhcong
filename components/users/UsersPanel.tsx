@@ -4,12 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 import {
-  createUser,
   deleteUser,
   getUserById,
   getUsers,
   updateUser,
-  type CreateUserPayload,
   type UpdateUserPayload,
   type User,
 } from "@/services/users";
@@ -18,6 +16,29 @@ type Notice = {
   kind: "success" | "error" | "info";
   message: string;
 };
+
+const roleOptions = [
+  { value: "", label: "Tất cả role" },
+  { value: "USER", label: "Người dùng" },
+  { value: "ADMIN", label: "Quản trị viên" },
+  { value: "WARD_CHAIRMAN", label: "Chủ tịch phường" },
+  { value: "NEIGHBORHOOD_HEAD", label: "Trưởng khu phố" },
+];
+
+const roleLabels: Record<string, string> = {
+  USER: "Người dùng",
+  ADMIN: "Quản trị viên",
+  WARD_CHAIRMAN: "Chủ tịch phường",
+  NEIGHBORHOOD_HEAD: "Trưởng khu phố",
+};
+
+const statusOptions = [
+  { value: "", label: "Chưa chọn" },
+  { value: "ACTIVE", label: "Đang hoạt động" },
+  { value: "INACTIVE", label: "Ngừng hoạt động" },
+  { value: "BLOCKED", label: "Đã khóa" },
+  { value: "PENDING", label: "Chờ xử lý" },
+];
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -57,6 +78,8 @@ function formatDate(value?: string) {
 export default function UsersPanel() {
   const [users, setUsers] = useState<User[]>([]);
   const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [notice, setNotice] = useState<Notice>({
     kind: "info",
     message: "Đang tải dữ liệu người dùng...",
@@ -65,7 +88,6 @@ export default function UsersPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [detailUser, setDetailUser] = useState<User | null>(null);
 
@@ -73,7 +95,13 @@ export default function UsersPanel() {
     setIsLoading(true);
 
     try {
-      const data = await getUsers();
+      const data = await getUsers({
+        page: 0,
+        size: 100,
+        keyword: query,
+        role: roleFilter,
+        status: statusFilter,
+      });
 
       setUsers(data);
       setNotice({
@@ -92,7 +120,7 @@ export default function UsersPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [query, roleFilter, statusFilter]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -114,46 +142,6 @@ export default function UsersPanel() {
     );
   }, [users, query]);
 
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-
-    const payload = cleanPayload<CreateUserPayload>({
-      username: getString(formData, "username"),
-      zalo_id: getString(formData, "zalo_id"),
-      avatar: getString(formData, "avatar"),
-      image: getString(formData, "image"),
-      url: getString(formData, "url"),
-      role: getString(formData, "role"),
-      password: getString(formData, "password"),
-    });
-
-    setIsSaving(true);
-
-    try {
-      const created = await createUser(payload);
-
-      setUsers((current) => [created, ...current]);
-      form.reset();
-      setIsCreateOpen(false);
-
-      setNotice({
-        kind: "success",
-        message: "Đã tạo người dùng mới.",
-      });
-    } catch (error) {
-      setNotice({
-        kind: "error",
-        message:
-          error instanceof Error ? error.message : "Không tạo được người dùng.",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -173,8 +161,15 @@ export default function UsersPanel() {
       avatar: getString(formData, "avatar"),
       image: getString(formData, "image"),
       url: getString(formData, "url"),
+      name: getString(formData, "name"),
+      email: getString(formData, "email"),
+      phone: getString(formData, "phone"),
+      title: getString(formData, "title"),
+      position: getString(formData, "position"),
+      department: getString(formData, "department"),
       role: getString(formData, "role"),
-      password: getString(formData, "password"),
+      businessRole: getString(formData, "businessRole"),
+      status: getString(formData, "status"),
     });
 
     setIsSaving(true);
@@ -277,13 +272,6 @@ export default function UsersPanel() {
                   {isLoading ? "Đang tải..." : "Làm mới dữ liệu"}
                 </button>
 
-                <button
-                  className="rounded-xl border border-yellow-300 bg-yellow-400 px-5 py-3 text-sm font-bold text-blue-950 transition hover:bg-yellow-300"
-                  onClick={() => setIsCreateOpen(true)}
-                  type="button"
-                >
-                  + Tạo người dùng
-                </button>
               </div>
             </div>
           </div>
@@ -340,25 +328,51 @@ export default function UsersPanel() {
                 </p>
               </div>
 
-              <input
+                  <div className="flex flex-col gap-3 lg:flex-row">
+                    <input
                 className="h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100 lg:w-96"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Tìm username, zalo_id..."
+                placeholder="Tìm username, zalo_id, tên, email..."
                 value={query}
               />
+                    <select
+                      className="h-11 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                      onChange={(event) => setRoleFilter(event.target.value)}
+                      value={roleFilter}
+                    >
+                      {roleOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className="h-11 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                      onChange={(event) => setStatusFilter(event.target.value)}
+                      placeholder="Status"
+                      value={statusFilter}
+                    />
+                  </div>
             </div>
           </div>
 
           <div className="overflow-x-auto p-6">
-            <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
+            <table className="w-full min-w-[1500px] border-separate border-spacing-0 text-left text-sm">
               <thead>
                 <tr className="bg-blue-950 text-white">
                   <th className="rounded-l-xl px-4 py-4 font-bold">Avatar</th>
                   <th className="px-4 py-4 font-bold">ID</th>
                   <th className="px-4 py-4 font-bold">Username</th>
                   <th className="px-4 py-4 font-bold">Zalo ID</th>
+                  <th className="px-4 py-4 font-bold">Tên</th>
+                  <th className="px-4 py-4 font-bold">Liên hệ</th>
+                  <th className="px-4 py-4 font-bold">Chức vụ</th>
+                  <th className="px-4 py-4 font-bold">Phòng ban</th>
                   <th className="px-4 py-4 font-bold">Role</th>
-                  <th className="px-4 py-4 font-bold">URL</th>
+                  <th className="px-4 py-4 font-bold">Business role</th>
+                  <th className="px-4 py-4 font-bold">Status</th>
+                  <th className="px-4 py-4 font-bold">Permissions</th>
+                  <th className="px-4 py-4 font-bold">Đăng nhập</th>
                   <th className="px-4 py-4 font-bold">Ngày tạo</th>
                   <th className="px-4 py-4 font-bold">Cập nhật</th>
                   <th className="rounded-r-xl px-4 py-4 text-right font-bold">
@@ -405,24 +419,53 @@ export default function UsersPanel() {
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4">
+                          {user.name ?? "-"}
+                        </td>
+
+                        <td className="border-b border-slate-100 px-4 py-4">
+                          <div className="space-y-1 text-xs">
+                            <p>{user.email ?? "-"}</p>
+                            <p>{user.phone ?? "-"}</p>
+                          </div>
+                        </td>
+
+                        <td className="border-b border-slate-100 px-4 py-4">
+                          {[user.title, user.position].filter(Boolean).join(" - ") || "-"}
+                        </td>
+
+                        <td className="border-b border-slate-100 px-4 py-4">
+                          {getStringValue(user.department) || "-"}
+                        </td>
+
+                        <td className="border-b border-slate-100 px-4 py-4">
                           <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">
-                            {getStringValue(user.role) || "-"}
+                            {roleLabels[getStringValue(user.systemRole) || getStringValue(user.role)] ??
+                              getStringValue(user.systemRole) ??
+                              getStringValue(user.role) ??
+                              "-"}
+                          </span>
+                        </td>
+
+                        <td className="border-b border-slate-100 px-4 py-4">
+                          {getStringValue(user.businessRole) || "-"}
+                        </td>
+
+                        <td className="border-b border-slate-100 px-4 py-4">
+                          <span className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                            {getStringValue(user.status) || "-"}
                           </span>
                         </td>
 
                         <td className="max-w-[220px] border-b border-slate-100 px-4 py-4">
-                          {getStringValue(user.url) ? (
-                            <a
-                              href={getStringValue(user.url)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="line-clamp-2 break-all text-xs font-semibold text-blue-700 hover:text-blue-900"
-                            >
-                              {getStringValue(user.url)}
-                            </a>
-                          ) : (
-                            "-"
-                          )}
+                          <span className="line-clamp-3 break-words text-xs">
+                            {user.permissions
+                              ? JSON.stringify(user.permissions)
+                              : "-"}
+                          </span>
+                        </td>
+
+                        <td className="border-b border-slate-100 px-4 py-4">
+                          {formatDate(getStringValue(user.lastLoginAt))}
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4">
@@ -486,15 +529,6 @@ export default function UsersPanel() {
         </section>
       </section>
 
-      {isCreateOpen ? (
-        <UserFormModal
-          isSaving={isSaving}
-          title="Tạo người dùng"
-          onClose={() => setIsCreateOpen(false)}
-          onSubmit={handleCreate}
-        />
-      ) : null}
-
       {editingUser ? (
         <UserFormModal
           isSaving={isSaving}
@@ -551,25 +585,32 @@ function UserFormModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
+      <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-xl">
         <div className="border-b border-slate-100 px-6 py-4">
           <h3 className="text-lg font-extrabold text-blue-950">{title}</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Nhập thông tin theo payload API: username, zalo_id, avatar, image,
-            url, role và password.
+            Cập nhật hồ sơ, trạng thái và phân quyền hệ thống của người dùng.
           </p>
         </div>
 
-        <form className="space-y-4 p-6" onSubmit={onSubmit}>
+        <form className="max-h-[calc(88vh-81px)] space-y-4 overflow-auto p-6" onSubmit={onSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
+            <label className="block md:col-span-2">
+              <span className="text-sm font-bold text-slate-700">ID</span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-500 outline-none"
+                defaultValue={user?.id ?? ""}
+                disabled
+              />
+            </label>
+
             <label className="block">
               <span className="text-sm font-bold text-slate-700">Username</span>
               <input
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
                 defaultValue={user?.username ?? ""}
                 name="username"
-                placeholder="Nguyễn Văn A"
-                required
+                placeholder="username"
               />
             </label>
 
@@ -580,6 +621,37 @@ function UserFormModal({
                 defaultValue={user?.zalo_id ?? ""}
                 name="zalo_id"
                 placeholder="zalo_123456"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Họ tên</span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={user?.name ?? ""}
+                name="name"
+                placeholder="Nguyễn Văn A"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Email</span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={user?.email ?? ""}
+                name="email"
+                placeholder="email@example.com"
+                type="email"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Điện thoại</span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={user?.phone ?? ""}
+                name="phone"
+                placeholder="090..."
               />
             </label>
 
@@ -614,29 +686,85 @@ function UserFormModal({
             </label>
 
             <label className="block">
+              <span className="text-sm font-bold text-slate-700">Chức danh</span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={user?.title ?? ""}
+                name="title"
+                placeholder="Ông/Bà..."
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Chức vụ</span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={user?.position ?? ""}
+                name="position"
+                placeholder="Chủ tịch phường, Trưởng khu phố..."
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Phòng ban</span>
+              <input
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={getStringValue(user?.department)}
+                name="department"
+                placeholder="Bộ phận/phòng ban"
+              />
+            </label>
+
+            <label className="block">
               <span className="text-sm font-bold text-slate-700">Role</span>
               <select
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
-                defaultValue={user?.role ?? "USER"}
+                defaultValue={user?.systemRole ?? user?.role ?? "USER"}
                 name="role"
               >
-                <option value="USER">USER</option>
-                <option value="ADMIN">ADMIN</option>
+                {roleOptions
+                  .filter((option) => option.value)
+                  .map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
               </select>
             </label>
 
-            <label className="block md:col-span-2">
-              <span className="text-sm font-bold text-slate-700">
-                Password {!user ? <span className="text-red-600">*</span> : null}
-              </span>
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Business role</span>
               <input
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
-                name="password"
-                placeholder={user ? "Để trống nếu không đổi mật khẩu" : "admin123"}
-                required={!user}
-                type="password"
+                defaultValue={getStringValue(user?.businessRole)}
+                name="businessRole"
+                placeholder="Vai trò nghiệp vụ"
               />
             </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Status</span>
+              <select
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                defaultValue={user?.status ?? ""}
+                name="status"
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                {user?.status &&
+                !statusOptions.some((option) => option.value === user.status) ? (
+                  <option value={user.status}>{user.status}</option>
+                ) : null}
+              </select>
+            </label>
+
+            <p className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+              Đổi mật khẩu dùng chức năng reset riêng, form này chỉ cập nhật
+              thông tin hồ sơ và phân quyền.
+            </p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

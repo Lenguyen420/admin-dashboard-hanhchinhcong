@@ -36,6 +36,7 @@ const API_URL = "/api/auth";
 const ACCESS_TOKEN_STORAGE_KEY = "admin_access_token";
 const REFRESH_TOKEN_STORAGE_KEY = "admin_refresh_token";
 const EXPIRES_AT_STORAGE_KEY = "admin_access_expires_at";
+const ADMIN_USER_STORAGE_KEY = "admin_user";
 
 export class ApiError extends Error {
     statusCode: number;
@@ -185,6 +186,31 @@ export function getStoredRefreshToken(): string {
     return window.localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? "";
 }
 
+export function getStoredAdminUser(): AdminUser | null {
+    if (typeof window === "undefined") {
+        return null;
+    }
+
+    const rawUser = window.localStorage.getItem(ADMIN_USER_STORAGE_KEY);
+
+    if (!rawUser) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(rawUser) as AdminUser;
+    } catch {
+        window.localStorage.removeItem(ADMIN_USER_STORAGE_KEY);
+        return null;
+    }
+}
+
+export function getAdminSystemRole(user?: AdminUser | null): string {
+    const role = user?.systemRole ?? user?.role;
+
+    return typeof role === "string" ? role.toUpperCase() : "USER";
+}
+
 let refreshTokenPromise: Promise<string> | null = null;
 
 export async function ensureStoredAdminToken(): Promise<string> {
@@ -253,6 +279,12 @@ export function rememberAdminAuth(data: AdminLoginData) {
             String(Date.now() + data.expiresIn * 1000),
         );
     }
+
+    const user = data.user ?? data.admin;
+
+    if (user) {
+        window.localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(user));
+    }
 }
 
 export function clearAdminAuth() {
@@ -263,4 +295,5 @@ export function clearAdminAuth() {
     window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
     window.localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
     window.localStorage.removeItem(EXPIRES_AT_STORAGE_KEY);
+    window.localStorage.removeItem(ADMIN_USER_STORAGE_KEY);
 }

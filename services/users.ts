@@ -10,6 +10,10 @@ export type ApiResponse<T> = {
     page?: number;
     size?: number;
     keyword?: string;
+    departmentId?: string;
+    roleId?: string;
+    role?: string;
+    status?: string;
   };
   
   export type PaginatedResponse<T> = {
@@ -32,30 +36,49 @@ export type ApiResponse<T> = {
     id: string;
     username: string;
     zalo_id: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    title?: string;
+    position?: string;
+    department?: string;
     avatar?: string;
     image?: string;
     url?: string;
     role?: string;
+    systemRole?: string;
+    businessRole?: string;
+    status?: string;
+    permissions?: unknown;
+    lastLoginAt?: string;
     createdAt?: string;
     updatedAt?: string;
   
     [key: string]: unknown;
   };
   
-  export type CreateUserPayload = {
+  export type UserFormPayload = {
     username: string;
     zalo_id: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    title?: string;
+    position?: string;
+    department?: string;
     avatar?: string;
     image?: string;
     url?: string;
     role?: string;
+    businessRole?: string;
+    status?: string;
     password?: string;
   
     [key: string]: unknown;
   };
   
   
-  export type UpdateUserPayload = Partial<CreateUserPayload>;
+  export type UpdateUserPayload = Partial<UserFormPayload>;
   
   const API_URL = "https://be.government.kidoedu.vn";
   const RESOURCE = "users";
@@ -211,19 +234,6 @@ const token = await ensureStoredAdminToken();
       method: "GET",
       headers: await getHeaders(),
       cache: "no-store",
-    });
-  
-    return normalizeSingleResponse<User>(data);
-  }
-  
-  // POST /users
-  export async function createUser(
-    payload: CreateUserPayload,
-  ): Promise<User> {
-    const data = await request<unknown>(`/${RESOURCE}`, {
-      method: "POST",
-      headers: await getHeaders(true),
-      body: JSON.stringify(payload),
     });
   
     return normalizeSingleResponse<User>(data);

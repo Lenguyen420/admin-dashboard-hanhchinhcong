@@ -29,7 +29,16 @@ import {
 export type GenericField = {
   name: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "select" | "datetime-local" | "json";
+  type?:
+    | "text"
+    | "number"
+    | "textarea"
+    | "select"
+    | "datetime-local"
+    | "date"
+    | "time"
+    | "checkbox"
+    | "json";
   placeholder?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;
@@ -144,6 +153,11 @@ function buildPayload(fields: GenericField[], formData: FormData) {
     const rawValue = formData.get(field.name);
     const value = typeof rawValue === "string" ? rawValue.trim() : "";
 
+    if (field.type === "checkbox") {
+      payload[field.name] = rawValue === "on";
+      return;
+    }
+
     if (!value) {
       return;
     }
@@ -160,6 +174,11 @@ function buildPayload(fields: GenericField[], formData: FormData) {
 
     if (field.type === "datetime-local") {
       payload[field.name] = new Date(value).toISOString();
+      return;
+    }
+
+    if (field.type === "date" || field.type === "time") {
+      payload[field.name] = value;
       return;
     }
 
@@ -191,6 +210,20 @@ function FieldControl({
         : typeof defaultValue === "string" || typeof defaultValue === "number"
           ? String(defaultValue)
           : "";
+
+  if (field.type === "checkbox") {
+    return (
+      <label className="mt-2 flex h-12 items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm text-slate-800">
+        <input
+          className="h-4 w-4 rounded border-slate-300 text-blue-700"
+          defaultChecked={Boolean(defaultValue)}
+          name={field.name}
+          type="checkbox"
+        />
+        <span>{field.placeholder ?? "Bật tùy chọn này"}</span>
+      </label>
+    );
+  }
 
   if (field.type === "textarea" || field.type === "json") {
     return (
@@ -230,7 +263,13 @@ function FieldControl({
       name={field.name}
       placeholder={field.placeholder}
       required={field.required}
-      type={field.type === "datetime-local" ? "datetime-local" : field.type ?? "text"}
+      type={
+        field.type === "datetime-local" ||
+        field.type === "date" ||
+        field.type === "time"
+          ? field.type
+          : field.type ?? "text"
+      }
     />
   );
 }
