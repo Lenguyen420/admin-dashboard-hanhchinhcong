@@ -3,9 +3,11 @@
 import { Bell, Grid2X2, Moon, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import LogoutButton from "@/components/auth/LogoutButton";
+import { getPermissions } from "@/components/auth/RemoteQueueGuard";
 import {
   getAdminSystemRole,
   getStoredAdminToken,
@@ -29,7 +31,13 @@ const navItems: Array<{
   label: string;
   href: string;
   roles?: string[];
+  permission?: string;
 }> = [
+  {
+    label: "Quản lý lấy số từ xa",
+    href: "/admin/remote-queue",
+    permission: "REMOTE_QUEUE_MANAGE",
+  },
   {
     label: "Tổng quan",
     href: "/",
@@ -125,7 +133,9 @@ const navItems: Array<{
   },
 ];
 
-function canSeeItem(role: string, itemRoles?: string[]) {
+function canSeeItem(role: string, permissions: string[], itemRoles?: string[], permission?: string) {
+  if (permission) return role === "ADMIN" || permissions.includes(permission);
+  if (role !== "ADMIN" && permissions.includes("REMOTE_QUEUE_MANAGE")) return false;
   if (!itemRoles) return role !== "USER";
   if (role === "ADMIN" && itemRoles.includes("ADMIN")) return true;
 
@@ -216,7 +226,7 @@ function Logo() {
               text-white sm:text-base
             "
           >
-            Xã Lộc Ninh - Tỉnh Tây Ninh
+            Phường Gò Dầu - Tỉnh Tây Ninh
           </p>
         </div>
       </div>
@@ -497,8 +507,8 @@ function Header({ role, user }: { role: string; user: AdminUser | null }) {
   );
 }
 
-function NavBar({ activeHref, role }: { activeHref: string; role: string }) {
-  const visibleItems = navItems.filter((item) => canSeeItem(role, item.roles));
+function NavBar({ activeHref, role, permissions }: { activeHref: string; role: string; permissions: string[] }) {
+  const visibleItems = navItems.filter((item) => canSeeItem(role, permissions, item.roles, item.permission));
 
   return (
     <nav
@@ -550,6 +560,7 @@ export default function AppShell({
   activeHref?: string;
   children: ReactNode;
 }) {
+  const router = useRouter();
   const [user, setUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
@@ -561,12 +572,21 @@ export default function AppShell({
   }, []);
 
   const role = useMemo(() => getAdminSystemRole(user), [user]);
+  const permissions = useMemo(() => getPermissions(user), [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const remoteStaff = role !== "ADMIN" && permissions.includes("REMOTE_QUEUE_MANAGE");
+    if (remoteStaff && activeHref !== "/admin/remote-queue") {
+      router.replace("/admin/remote-queue");
+    }
+  }, [activeHref, permissions, role, router, user]);
 
   return (
     <div className="min-h-screen bg-[#f7f2ef] text-[#182433]">
       <TopOffer />
       <Header role={role} user={user} />
-      <NavBar activeHref={activeHref} role={role} />
+      <NavBar activeHref={activeHref} permissions={permissions} role={role} />
 
       <main className="mx-auto w-full max-w-[1288px] px-4 py-6">
         {children}

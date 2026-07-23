@@ -18,7 +18,7 @@ type Notice = {
 };
 
 const roleOptions = [
-  { value: "", label: "Tất cả role" },
+  { value: "", label: "Tất cả chức vụ" },
   { value: "USER", label: "Người dùng" },
   { value: "ADMIN", label: "Quản trị viên" },
   { value: "WARD_CHAIRMAN", label: "Chủ tịch phường" },
@@ -40,9 +40,16 @@ const statusOptions = [
   { value: "PENDING", label: "Chờ xử lý" },
 ];
 
+const MIN_PASSWORD_LENGTH = 6;
+
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getRawString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
 }
 
 function getStringValue(value: unknown) {
@@ -155,7 +162,29 @@ export default function UsersPanel() {
 
     const formData = new FormData(event.currentTarget);
 
+    const password = getRawString(formData, "password");
+    const passwordConfirm = getRawString(formData, "passwordConfirm");
+
+    if (password || passwordConfirm) {
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        setNotice({
+          kind: "error",
+          message: `Mật khẩu mới phải có ít nhất ${MIN_PASSWORD_LENGTH} ký tự.`,
+        });
+        return;
+      }
+
+      if (password !== passwordConfirm) {
+        setNotice({
+          kind: "error",
+          message: "Xác nhận mật khẩu không khớp với mật khẩu mới.",
+        });
+        return;
+      }
+    }
+
     const payload = cleanPayload<UpdateUserPayload>({
+      password,
       username: getString(formData, "username"),
       zalo_id: getString(formData, "zalo_id"),
       avatar: getString(formData, "avatar"),
@@ -165,7 +194,6 @@ export default function UsersPanel() {
       email: getString(formData, "email"),
       phone: getString(formData, "phone"),
       title: getString(formData, "title"),
-      position: getString(formData, "position"),
       department: getString(formData, "department"),
       role: getString(formData, "role"),
       businessRole: getString(formData, "businessRole"),
@@ -185,7 +213,9 @@ export default function UsersPanel() {
 
       setNotice({
         kind: "success",
-        message: "Đã cập nhật người dùng.",
+        message: password
+          ? "Đã cập nhật người dùng và đổi mật khẩu."
+          : "Đã cập nhật người dùng.",
       });
     } catch (error) {
       setNotice({
@@ -357,7 +387,7 @@ export default function UsersPanel() {
           </div>
 
           <div className="overflow-x-auto p-6">
-            <table className="w-full min-w-[1500px] border-separate border-spacing-0 text-left text-sm">
+            <table className="w-full min-w-[1400px] border-separate border-spacing-0 text-left text-sm">
               <thead>
                 <tr className="bg-blue-950 text-white">
                   <th className="rounded-l-xl px-4 py-4 font-bold">Avatar</th>
@@ -366,9 +396,8 @@ export default function UsersPanel() {
                   <th className="px-4 py-4 font-bold">Zalo ID</th>
                   <th className="px-4 py-4 font-bold">Tên</th>
                   <th className="px-4 py-4 font-bold">Liên hệ</th>
-                  <th className="px-4 py-4 font-bold">Chức vụ</th>
                   <th className="px-4 py-4 font-bold">Phòng ban</th>
-                  <th className="px-4 py-4 font-bold">Role</th>
+                  <th className="px-4 py-4 font-bold">Chức vụ</th>
                   <th className="px-4 py-4 font-bold">Business role</th>
                   <th className="px-4 py-4 font-bold">Status</th>
                   <th className="px-4 py-4 font-bold">Permissions</th>
@@ -427,10 +456,6 @@ export default function UsersPanel() {
                             <p>{user.email ?? "-"}</p>
                             <p>{user.phone ?? "-"}</p>
                           </div>
-                        </td>
-
-                        <td className="border-b border-slate-100 px-4 py-4">
-                          {[user.title, user.position].filter(Boolean).join(" - ") || "-"}
                         </td>
 
                         <td className="border-b border-slate-100 px-4 py-4">
@@ -583,6 +608,8 @@ function UserFormModal({
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
       <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-xl">
@@ -696,16 +723,6 @@ function UserFormModal({
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-slate-700">Chức vụ</span>
-              <input
-                className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
-                defaultValue={user?.position ?? ""}
-                name="position"
-                placeholder="Chủ tịch phường, Trưởng khu phố..."
-              />
-            </label>
-
-            <label className="block">
               <span className="text-sm font-bold text-slate-700">Phòng ban</span>
               <input
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
@@ -716,7 +733,7 @@ function UserFormModal({
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-slate-700">Role</span>
+              <span className="text-sm font-bold text-slate-700">Chức vụ</span>
               <select
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
                 defaultValue={user?.systemRole ?? user?.role ?? "USER"}
@@ -761,10 +778,62 @@ function UserFormModal({
               </select>
             </label>
 
-            <p className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-              Đổi mật khẩu dùng chức năng reset riêng, form này chỉ cập nhật
-              thông tin hồ sơ và phân quyền.
-            </p>
+            <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-extrabold text-blue-950">
+                    Đổi mật khẩu
+                  </h4>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Để trống nếu không muốn thay đổi mật khẩu hiện tại. Mật khẩu
+                    mới cần tối thiểu {MIN_PASSWORD_LENGTH} ký tự.
+                  </p>
+                </div>
+
+                <button
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                  onClick={() => setShowPassword((current) => !current)}
+                  type="button"
+                >
+                  {showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="text-sm font-bold text-slate-700">
+                    Mật khẩu mới
+                  </span>
+                  <input
+                    autoComplete="new-password"
+                    className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                    minLength={MIN_PASSWORD_LENGTH}
+                    name="password"
+                    placeholder="Nhập mật khẩu mới"
+                    type={showPassword ? "text" : "password"}
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-bold text-slate-700">
+                    Xác nhận mật khẩu
+                  </span>
+                  <input
+                    autoComplete="new-password"
+                    className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
+                    minLength={MIN_PASSWORD_LENGTH}
+                    name="passwordConfirm"
+                    placeholder="Nhập lại mật khẩu mới"
+                    type={showPassword ? "text" : "password"}
+                  />
+                </label>
+              </div>
+
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                Mật khẩu chỉ dùng cho tài khoản đăng nhập trực tiếp vào hệ thống
+                quản trị. Người dùng đăng nhập qua Zalo không cần mật khẩu.
+              </p>
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

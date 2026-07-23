@@ -33,8 +33,13 @@ export type WardTask = AdminRecord & {
 };
 
 export type PointReport = AdminRecord & {
+  month?: number;
+  year?: number;
   initialPoints?: number;
   totalTasks?: number;
+  user?: AdminRecord;
+  assigneeId?: string | number;
+  assigneeName?: string;
   completed?: number;
   incomplete?: number;
   rejected?: number;
@@ -87,22 +92,34 @@ function unwrapData(value: unknown): unknown {
   return value;
 }
 
-function isPointReportRecord(value: AdminRecord) {
-  return [
-    "assigneeId",
-    "assigneeName",
-    "name",
-    "initialPoints",
-    "totalTasks",
-    "completed",
-    "incomplete",
-    "rejected",
-    "pending",
-    "submitted",
-    "earned",
-    "deducted",
-    "score",
-  ].some((key) => key in value);
+function normalizePointReportRows(value: unknown): PointReport[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(isRecord).flatMap((report) => {
+    const users = report.users;
+
+    if (!Array.isArray(users)) {
+      return [report as PointReport];
+    }
+
+    return users.filter(isRecord).map((userReport) => {
+      const user = isRecord(userReport.user) ? userReport.user : {};
+
+      return {
+        ...userReport,
+        month: report.month,
+        year: report.year,
+        initialPoints: userReport.initialPoints ?? report.initialPoints,
+        totalTasks: userReport.totalTasks ?? report.totalTasks,
+        summary: report.summary,
+        user,
+        assigneeId: userReport.assigneeId ?? user.id,
+        assigneeName: userReport.assigneeName ?? user.name ?? user.username,
+      } as PointReport;
+    });
+  });
 }
 
 async function formRequest(path: string, formData: FormData) {
@@ -230,7 +247,7 @@ export async function getPointReport(query?: ListQuery): Promise<PointReport[]> 
   const unwrapped = unwrapData(body);
 
   if (Array.isArray(unwrapped)) {
-    return unwrapped.filter(isRecord).filter(isPointReportRecord) as PointReport[];
+    return normalizePointReportRows(unwrapped);
   }
 
   if (isRecord(unwrapped)) {
@@ -244,19 +261,17 @@ export async function getPointReport(query?: ListQuery): Promise<PointReport[]> 
 
     for (const candidate of candidates) {
       if (Array.isArray(candidate)) {
-        return candidate
-          .filter(isRecord)
-          .filter(isPointReportRecord) as PointReport[];
+        return normalizePointReportRows(candidate);
       }
     }
 
-    return isPointReportRecord(unwrapped) ? ([unwrapped] as PointReport[]) : [];
+    return [unwrapped] as PointReport[];
   }
 
   const list = normalizeList(body);
 
   if (list.length > 0) {
-    return list.filter(isPointReportRecord) as PointReport[];
+    return normalizePointReportRows(list);
   }
 
   return [];

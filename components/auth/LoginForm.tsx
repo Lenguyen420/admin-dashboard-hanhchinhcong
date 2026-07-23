@@ -15,6 +15,7 @@ import {
 
 import { rememberAccessTokenExpiry } from "@/components/auth/AuthRefreshScheduler";
 import { adminLogin, isApiError, rememberAdminAuth } from "@/services/auth.service";
+import { canManageRemoteQueue } from "@/components/auth/RemoteQueueGuard";
 
 const DASHBOARD_PATH = "/";
 
@@ -62,7 +63,9 @@ export default function LoginForm() {
       rememberAdminAuth(data);
       rememberAccessTokenExpiry(data.expiresIn);
 
-      window.location.assign(DASHBOARD_PATH);
+      const loggedInUser = data.user ?? data.admin ?? null;
+      const role = String(loggedInUser?.systemRole ?? loggedInUser?.role ?? "USER").toUpperCase();
+      window.location.assign(role !== "ADMIN" && canManageRemoteQueue(loggedInUser) ? "/admin/remote-queue" : DASHBOARD_PATH);
     } catch (requestError) {
       const message =
         requestError instanceof Error
@@ -96,7 +99,7 @@ export default function LoginForm() {
                 Ủy ban Mặt trận Tổ quốc Việt Nam
               </p>
               <p className="mt-1 truncate text-lg font-bold text-white">
-                Xã Lộc Ninh - Tỉnh Tây Ninh
+                Phường Gò Dầu - Tỉnh Tây Ninh
               </p>
             </div>
           </div>

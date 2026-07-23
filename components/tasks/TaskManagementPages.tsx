@@ -2,7 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { CheckCircle2, Clock, FileDown, Plus, RefreshCw, Search, XCircle } from "lucide-react";
+import {
+  AlertCircle,
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  Eye,
+  FileDown,
+  FilterX,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Search,
+  TimerOff,
+  TrendingDown,
+  TrendingUp,
+  UserCheck,
+  XCircle,
+} from "lucide-react";
 
 import {
   completeWardTask,
@@ -28,10 +45,10 @@ type Notice = {
 
 const statusLabels: Record<TaskStatus, string> = {
   ASSIGNED: "Đã giao",
-  SUBMITTED: "Chờ đánh giá",
+  SUBMITTED: "Đã nộp - Chờ duyệt",
   COMPLETED: "Hoàn thành",
   INCOMPLETE: "Chưa hoàn thành",
-  REJECTED: "Đã từ chối",
+  REJECTED: "Từ chối",
 };
 
 const statusClasses: Record<TaskStatus, string> = {
@@ -568,30 +585,314 @@ function TaskDetailModal({ task, isAssigned, onClose, onChanged, setNotice }: { 
   );
 }
 
+type DeadlineFilter = "" | "on-time" | "overdue";
+type PointSortKey = "name" | "totalTasks" | "completed" | "score";
+
+type TaskScore = {
+  earned: number;
+  deducted: number;
+  net: number;
+  isOverdue: boolean;
+  deadlineLabel: string;
+  latenessText: string;
+  submittedAt: unknown;
+  evaluatedAt: unknown;
+};
+
+type PointReportRow = {
+  id: string;
+  name: string;
+  totalTasks: number;
+  assigned: number;
+  submitted: number;
+  completed: number;
+  incomplete: number;
+  rejected: number;
+  overdue: number;
+  earned: number;
+  deducted: number;
+  score: number;
+  raw: PointReport;
+  tasks: WardTask[];
+};
+
+function getNumber(value: unknown) {
+  const number = Number(value ?? 0);
+
+  return Number.isFinite(number) ? number : 0;
+}
+
+function getTaskAssigneeId(task: WardTask) {
+  return getId(task.assigneeId) || getId(getRecord(task.assignee).id);
+}
+
+function getTaskSubmittedAt(task: WardTask) {
+  return task.submittedAt ?? task.completedAt ?? task.submissionTime ?? task.submittedTime;
+}
+
+function getTaskEvaluatedAt(task: WardTask) {
+  return task.evaluatedAt ?? task.evaluationTime ?? task.reviewedAt ?? task.updatedAt;
+}
+
+function getDateMs(value: unknown) {
+  const text = getText(value);
+
+  if (!text) return null;
+
+  const date = new Date(text);
+
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function formatSigned(value: unknown, mode: "plus" | "minus" | "net" = "net") {
+  const number = getNumber(value);
+  const prefix = mode === "plus" && number > 0 ? "+" : mode === "minus" && number > 0 ? "-" : number > 0 && mode === "net" ? "+" : "";
+
+  return `${prefix}${formatNumber(Math.abs(number))}`;
+}
+
+function getLatenessText(deltaMs: number) {
+  const minutes = Math.max(1, Math.ceil(deltaMs / 60000));
+
+  if (minutes < 60) return `${minutes} phút`;
+
+  const hours = Math.ceil(minutes / 60);
+
+  if (hours < 24) return `${hours} giờ`;
+
+  return `${Math.ceil(hours / 24)} ngày`;
+}
+
+function calculateTaskScore(task: WardTask, now = Date.now()): TaskScore {
+  const status = getStatus(task.status);
+  const points = getNumber(task.points);
+  const deadlineMs = getDateMs(task.deadline);
+  const submittedAt = getTaskSubmittedAt(task);
+  const submittedMs = getDateMs(submittedAt);
+  const evaluatedAt = getTaskEvaluatedAt(task);
+  const completedEarned = status === "COMPLETED" ? points : 0;
+  const overdueMs = deadlineMs ? (submittedMs ?? now) - deadlineMs : 0;
+  const isLateSubmission = Boolean(deadlineMs && submittedMs && submittedMs > deadlineMs);
+  const isMissingPastDeadline = Boolean(deadlineMs && !submittedMs && now > deadlineMs && status !== "COMPLETED");
+  const isOverdue = isLateSubmission || isMissingPastDeadline;
+  const deducted = isOverdue ? 10 : 0;
+  const deadlineLabel = !deadlineMs
+    ? "—"
+    : isOverdue
+      ? "Trễ hạn"
+      : submittedMs || status === "COMPLETED"
+        ? "Đúng hạn"
+        : deadlineMs - now <= 24 * 60 * 60 * 1000
+          ? "Sắp đến hạn"
+          : "Chưa đến hạn";
+
+  return {
+    earned: completedEarned,
+    deducted,
+    net: completedEarned - deducted,
+    isOverdue,
+    deadlineLabel,
+    latenessText: isOverdue && overdueMs > 0 ? getLatenessText(overdueMs) : "",
+    submittedAt,
+    evaluatedAt,
+  };
+}
+
+function getInitialQueryValue(key: string, fallback: string) {
+  if (typeof window === "undefined") return fallback;
+
+  return new URLSearchParams(window.location.search).get(key) ?? fallback;
+}
+
+function isInReportPeriod(value: unknown, month: string, year: string) {
+  const dateMs = getDateMs(value);
+
+  if (!dateMs) return true;
+
+  const date = new Date(dateMs);
+
+  return (!month || date.getMonth() + 1 === Number(month))
+    && (!year || date.getFullYear() === Number(year));
+}
+
+function buildPointRows(
+  items: PointReport[],
+  tasks: WardTask[],
+  month: string,
+  year: string,
+): PointReportRow[] {
+  const periodItems = items.filter((item) => (
+    (!month || !item.month || Number(item.month) === Number(month))
+    && (!year || !item.year || Number(item.year) === Number(year))
+  ));
+  const periodTasks = tasks.filter((task) => isInReportPeriod(
+    task.deadline ?? task.createdAt ?? task.assignedAt,
+    month,
+    year,
+  ));
+  const rows = periodItems.map((item, index) => {
+    const id = getId(item.assigneeId) || getId(getRecord(item.user).id) || `row-${index}`;
+    const name = getText(item.assigneeName) || getText(item.name) || getText(getRecord(item.user).name) || getText(getRecord(item.user).username) || "—";
+    const userTasks = id.startsWith("row-") ? [] : periodTasks.filter((task) => getTaskAssigneeId(task) === id);
+    const calculated = userTasks.map((task) => calculateTaskScore(task));
+    const countedTotal = getNumber(item.completed) + getNumber(item.incomplete) + getNumber(item.rejected) + getNumber(item.pending) + getNumber(item.submitted);
+
+    return {
+      id,
+      name,
+      totalTasks: countedTotal || getNumber(item.totalTasks) || userTasks.length,
+      assigned: getNumber(item.pending),
+      submitted: getNumber(item.submitted),
+      completed: getNumber(item.completed),
+      incomplete: getNumber(item.incomplete),
+      rejected: getNumber(item.rejected),
+      overdue: calculated.filter((score) => score.isOverdue).length,
+      earned: item.earned == null ? calculated.reduce((sum, score) => sum + score.earned, 0) : getNumber(item.earned),
+      deducted: item.deducted == null ? calculated.reduce((sum, score) => sum + score.deducted, 0) : getNumber(item.deducted),
+      score: item.score == null
+        ? calculated.reduce((sum, score) => sum + score.net, 0)
+        : getNumber(item.score),
+      raw: item,
+      tasks: userTasks,
+    };
+  });
+
+  return Array.from(rows.reduce<Map<string, PointReportRow>>((grouped, row) => {
+    const current = grouped.get(row.id);
+
+    if (!current) {
+      grouped.set(row.id, row);
+      return grouped;
+    }
+
+    const tasksById = new Map(
+      [...current.tasks, ...row.tasks].map((task, index) => [
+        getId(task.id) || `${row.id}-task-${index}`,
+        task,
+      ]),
+    );
+
+    grouped.set(row.id, {
+      ...current,
+      name: current.name === "—" ? row.name : current.name,
+      totalTasks: current.totalTasks + row.totalTasks,
+      assigned: current.assigned + row.assigned,
+      submitted: current.submitted + row.submitted,
+      completed: current.completed + row.completed,
+      incomplete: current.incomplete + row.incomplete,
+      rejected: current.rejected + row.rejected,
+      overdue: Math.max(current.overdue, row.overdue),
+      earned: current.earned + row.earned,
+      deducted: current.deducted + row.deducted,
+      score: current.score + row.score,
+      tasks: Array.from(tasksById.values()),
+    });
+
+    return grouped;
+  }, new Map()).values());
+}
+
+function DeadlineBadge({ score }: { score: TaskScore }) {
+  const className = score.deadlineLabel === "Trễ hạn"
+    ? "border-red-200 bg-red-50 text-red-700"
+    : score.deadlineLabel === "Sắp đến hạn"
+      ? "border-amber-200 bg-amber-50 text-amber-700"
+      : "border-emerald-200 bg-emerald-50 text-emerald-700";
+
+  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${className}`}>{score.deadlineLabel}</span>;
+}
+
+function ScoreText({ value }: { value: number }) {
+  const className = value < 0 ? "text-red-700" : value > 0 ? "text-emerald-700" : "text-slate-700";
+
+  return <span className={`font-extrabold ${className}`}>{formatSigned(value)}</span>;
+}
+
+function ProgressBar({ completed, total }: { completed: number; total: number }) {
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return (
+    <div className="min-w-[140px]">
+      <div className="flex items-center justify-between gap-3 text-xs font-bold text-slate-600">
+        <span>{completed}/{total}</span>
+        <span>{percent}%</span>
+      </div>
+      <div className="mt-2 h-2 rounded-full bg-slate-100">
+        <div className="h-2 rounded-full bg-blue-900" style={{ width: `${Math.min(100, percent)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function PointSkeleton() {
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        {Array.from({ length: 7 }).map((_, index) => (
+          <div className="h-28 animate-pulse rounded-xl bg-slate-100" key={index} />
+        ))}
+      </div>
+      <div className="h-80 animate-pulse rounded-xl bg-slate-100" />
+    </div>
+  );
+}
+
 export function PointReportPage() {
   const [items, setItems] = useState<PointReport[]>([]);
+  const [tasks, setTasks] = useState<WardTask[]>([]);
   const [options, setOptions] = useState<TaskAssignmentOptions>({});
-  const [month, setMonth] = useState(() => getCurrentMonthText());
-  const [year, setYear] = useState(() => getCurrentYearText());
-  const [assigneeId, setAssigneeId] = useState("");
+  const [month, setMonth] = useState(() => getInitialQueryValue("month", getCurrentMonthText()));
+  const [year, setYear] = useState(() => getInitialQueryValue("year", getCurrentYearText()));
+  const [assigneeId, setAssigneeId] = useState(() => getInitialQueryValue("assigneeId", ""));
+  const [status, setStatus] = useState(() => getInitialQueryValue("status", ""));
+  const [deadlineFilter, setDeadlineFilter] = useState<DeadlineFilter>(() => getInitialQueryValue("deadline", "") as DeadlineFilter);
+  const [keyword, setKeyword] = useState(() => getInitialQueryValue("keyword", ""));
+  const [debouncedKeyword, setDebouncedKeyword] = useState(keyword);
+  const [selectedId, setSelectedId] = useState("");
+  const [sortKey, setSortKey] = useState<PointSortKey>("score");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState("");
+  const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<Notice>({ kind: "info", message: "Đang tải báo cáo điểm..." });
   const role = useMemo(() => getAdminSystemRole(getStoredAdminUser()), []);
   const heads = headsFromOptions(options);
 
   const loadReport = useCallback(async () => {
+    setLoading(true);
     try {
-      const [reportData, optionData] = await Promise.all([
+      const taskQuery = {
+        page: 0,
+        size: 1000,
+        month: month ? Number(month) : undefined,
+        year: year ? Number(year) : undefined,
+        assigneeId,
+        status,
+      };
+      const [reportData, taskData, optionData] = await Promise.all([
         getPointReport({ month, year, assigneeId }),
+        role === "NEIGHBORHOOD_HEAD" ? getReceivedTasks(taskQuery).catch(() => []) : getAssignedTasks(taskQuery).catch(() => []),
         getTaskAssignmentOptions().catch(() => ({})),
       ]);
       setItems(reportData);
+      setTasks(taskData);
       setOptions(optionData);
-      setNotice({ kind: "success", message: `Đã tải ${reportData.length} dòng báo cáo.` });
+      setLastUpdatedAt(new Date().toLocaleString("vi-VN"));
+      setNotice({ kind: "success", message: `Đã tải ${reportData.length} trưởng khu phố.` });
     } catch (error) {
       setItems([]);
+      setTasks([]);
       setNotice({ kind: "error", message: getError(error, "Không tải được báo cáo điểm.") });
+    } finally {
+      setLoading(false);
     }
-  }, [month, year, assigneeId]);
+  }, [month, year, assigneeId, status, role]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedKeyword(keyword), 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [keyword]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -601,59 +902,425 @@ export function PointReportPage() {
     return () => window.clearTimeout(timeoutId);
   }, [loadReport]);
 
+  const rows = useMemo(() => {
+    const hasTaskFilter = Boolean(debouncedKeyword.trim() || deadlineFilter || status);
+    const normalized = buildPointRows(items, tasks, month, year);
+    const filtered = normalized.map((row) => {
+      const filteredTasks = row.tasks.filter((task) => {
+        const score = calculateTaskScore(task);
+        const matchesKeyword = !debouncedKeyword.trim() || `${getText(task.title)} ${getText(task.content)}`.toLowerCase().includes(debouncedKeyword.trim().toLowerCase());
+        const matchesDeadline = !deadlineFilter || (deadlineFilter === "overdue" ? score.isOverdue : !score.isOverdue);
+        const matchesStatus = !status || getStatus(task.status) === status;
+
+        return matchesKeyword && matchesDeadline && matchesStatus;
+      });
+
+      if (!hasTaskFilter || row.tasks.length === 0) {
+        return { ...row, tasks: filteredTasks };
+      }
+
+      const scores = filteredTasks.map((task) => calculateTaskScore(task));
+      const statusCounts = filteredTasks.reduce<{
+        assigned: number;
+        submitted: number;
+        completed: number;
+        incomplete: number;
+        rejected: number;
+      }>(
+        (sum, task) => {
+          const taskStatus = getStatus(task.status);
+
+          return {
+            assigned: sum.assigned + (taskStatus === "ASSIGNED" ? 1 : 0),
+            submitted: sum.submitted + (taskStatus === "SUBMITTED" ? 1 : 0),
+            completed: sum.completed + (taskStatus === "COMPLETED" ? 1 : 0),
+            incomplete: sum.incomplete + (taskStatus === "INCOMPLETE" ? 1 : 0),
+            rejected: sum.rejected + (taskStatus === "REJECTED" ? 1 : 0),
+          };
+        },
+        { assigned: 0, submitted: 0, completed: 0, incomplete: 0, rejected: 0 },
+      );
+      const earned = scores.reduce((sum, score) => sum + score.earned, 0);
+      const deducted = scores.reduce((sum, score) => sum + score.deducted, 0);
+
+      return {
+        ...row,
+        ...statusCounts,
+        totalTasks: filteredTasks.length,
+        overdue: scores.filter((score) => score.isOverdue).length,
+        earned,
+        deducted,
+        score: earned - deducted,
+        tasks: filteredTasks,
+      };
+    }).filter((row) => (!assigneeId || row.id === assigneeId) && (!hasTaskFilter || row.tasks.length > 0 || tasks.length === 0));
+
+    return filtered.sort((left, right) => {
+      const leftValue = sortKey === "name" ? left.name : left[sortKey];
+      const rightValue = sortKey === "name" ? right.name : right[sortKey];
+      const compared = typeof leftValue === "string"
+        ? leftValue.localeCompare(String(rightValue), "vi")
+        : Number(leftValue) - Number(rightValue);
+
+      return sortDirection === "asc" ? compared : -compared;
+    });
+  }, [items, tasks, month, year, debouncedKeyword, deadlineFilter, status, assigneeId, sortKey, sortDirection]);
+
+  const selectedRow = rows.find((row) => row.id === selectedId);
+  const totals = rows.reduce(
+    (sum, row) => ({
+      totalTasks: sum.totalTasks + row.totalTasks,
+      completed: sum.completed + row.completed,
+      submitted: sum.submitted + row.submitted,
+      overdue: sum.overdue + row.overdue,
+      earned: sum.earned + row.earned,
+      deducted: sum.deducted + row.deducted,
+      score: sum.score + row.score,
+    }),
+    { totalTasks: 0, completed: 0, submitted: 0, overdue: 0, earned: 0, deducted: 0, score: 0 },
+  );
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pagedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  function updateUrl() {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams();
+    [
+      ["month", month],
+      ["year", year],
+      ["assigneeId", assigneeId],
+      ["status", status],
+      ["deadline", deadlineFilter],
+      ["keyword", keyword],
+    ].forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
+  }
+
+  function applyFilters() {
+    updateUrl();
+    void loadReport();
+  }
+
+  function resetFilters() {
+    setMonth(getCurrentMonthText());
+    setYear(getCurrentYearText());
+    setAssigneeId("");
+    setStatus("");
+    setDeadlineFilter("");
+    setKeyword("");
+    setSelectedId("");
+    setPage(1);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }
+
+  function toggleSort(nextKey: PointSortKey) {
+    if (sortKey === nextKey) {
+      setSortDirection((value) => (value === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortKey(nextKey);
+    setSortDirection(nextKey === "name" ? "asc" : "desc");
+  }
+
+  const metricCards = [
+    { label: "Tổng công việc", value: totals.totalTasks, icon: BarChart3, className: "text-blue-900", title: "Tổng số công việc trong kỳ" },
+    { label: "Hoàn thành", value: totals.completed, icon: CheckCircle2, className: "text-emerald-700", title: "Công việc đã được duyệt hoàn thành" },
+    { label: "Chờ duyệt", value: totals.submitted, icon: Clock, className: "text-amber-700", title: "Công việc đã nộp nhưng chưa duyệt" },
+    { label: "Trễ hạn", value: totals.overdue, icon: TimerOff, className: "text-red-700", title: "Công việc nộp trễ hoặc quá hạn chưa nộp" },
+    { label: "Điểm cộng", value: `+${formatNumber(totals.earned)}`, icon: TrendingUp, className: "text-emerald-700", title: "Chỉ cộng điểm cho công việc COMPLETED" },
+    { label: "Điểm trừ", value: `-${formatNumber(totals.deducted)}`, icon: TrendingDown, className: "text-red-700", title: "Mỗi công việc trễ hạn trừ 10 điểm" },
+    { label: "Điểm thực tế", value: formatSigned(totals.score), icon: UserCheck, className: totals.score < 0 ? "text-red-700" : "text-blue-900", title: "Tổng điểm sau khi cộng và trừ" },
+  ];
+
   return (
-    <PageFrame description="Thống kê điểm theo tháng/năm từ dữ liệu backend." notice={notice} title={role === "NEIGHBORHOOD_HEAD" ? "Điểm của tôi" : "Báo cáo điểm"}>
-      <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-[140px_140px_minmax(0,1fr)_auto]">
-          <input className="h-11 rounded-lg border border-slate-300 px-4 text-sm" onChange={(event) => setMonth(event.target.value)} placeholder="Tháng" type="number" value={month} />
-          <input className="h-11 rounded-lg border border-slate-300 px-4 text-sm" onChange={(event) => setYear(event.target.value)} placeholder="Năm" type="number" value={year} />
-          {role === "WARD_CHAIRMAN" ? (
-            <select className="h-11 rounded-lg border border-slate-300 px-4 text-sm" onChange={(event) => setAssigneeId(event.target.value)} value={assigneeId}>
-              <option value="">Tất cả trưởng khu phố</option>
-              {heads.map((head) => (
-                <option key={getId(head.id)} value={getId(head.id)}>
-                  {getText(head.name) || getText(head.username) || getId(head.id)}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span />
-          )}
-          <button className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-bold" onClick={loadReport} type="button">
-            <Clock className="h-4 w-4" />
-            Xem báo cáo
+    <PageFrame
+      action={
+        <div className="flex flex-col gap-3 sm:items-end">
+          <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-yellow-400 px-4 py-3 text-sm font-bold text-blue-950 transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-70" disabled={loading} onClick={loadReport} type="button">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Làm mới dữ liệu
+          </button>
+          <p className="text-sm text-blue-100">Cập nhật: {lastUpdatedAt || "—"}</p>
+        </div>
+      }
+      description="Theo dõi tiến độ, tình trạng hoàn thành và kết quả KPI"
+      notice={notice}
+      title={role === "NEIGHBORHOOD_HEAD" ? "Báo cáo điểm của tôi" : "Báo cáo điểm theo nhân viên"}
+    >
+      <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="grid gap-3 lg:grid-cols-[120px_120px_minmax(180px,1fr)_190px_160px_minmax(220px,1fr)]">
+          <input className="h-11 rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm outline-none focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100" max="12" min="1" onChange={(event) => { setMonth(event.target.value); setPage(1); }} placeholder="Tháng" type="number" value={month} />
+          <input className="h-11 rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm outline-none focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100" min="2020" onChange={(event) => { setYear(event.target.value); setPage(1); }} placeholder="Năm" type="number" value={year} />
+          <select className="h-11 rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm outline-none focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100" onChange={(event) => setAssigneeId(event.target.value)} value={assigneeId}>
+            <option value="">Tất cả trưởng khu phố</option>
+            {heads.map((head) => (
+              <option key={getId(head.id)} value={getId(head.id)}>
+                {getText(head.name) || getText(head.username) || getId(head.id)}
+              </option>
+            ))}
+          </select>
+          <select className="h-11 rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm outline-none focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100" onChange={(event) => setStatus(event.target.value)} value={status}>
+            {taskStatuses.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          <select className="h-11 rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm outline-none focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100" onChange={(event) => setDeadlineFilter(event.target.value as DeadlineFilter)} value={deadlineFilter}>
+            <option value="">Tất cả thời hạn</option>
+            <option value="on-time">Đúng hạn</option>
+            <option value="overdue">Trễ hạn</option>
+          </select>
+          <label className="relative block">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input className="h-11 w-full rounded-lg border border-slate-300 bg-slate-50 pl-10 pr-4 text-sm outline-none focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100" onChange={(event) => setKeyword(event.target.value)} placeholder="Tìm theo tên công việc" value={keyword} />
+          </label>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:flex lg:justify-end">
+          <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-900 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70" disabled={loading} onClick={applyFilters} type="button">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            Áp dụng
+          </button>
+          <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50" onClick={resetFilters} type="button">
+            <FilterX className="h-4 w-4" />
+            Xóa bộ lọc
           </button>
         </div>
-        <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[1000px] text-left text-sm">
-            <thead className="bg-blue-950 text-white">
-              <tr>
-                {["Người nhận", "Điểm đầu", "Tổng việc", "Hoàn thành", "Chưa hoàn thành", "Từ chối", "Đang chờ", "Đã nộp", "Cộng", "Trừ", "Điểm"].map((label, index, arr) => (
-                  <th className={`px-4 py-3 ${index === 0 ? "rounded-l-lg" : ""} ${index === arr.length - 1 ? "rounded-r-lg" : ""}`} key={label}>{label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => (
-                <tr className="border-b border-slate-100" key={getId(item.assigneeId) || String(index)}>
-                  <td className="px-4 py-4 font-bold text-blue-950">{getText(item.assigneeName) || getText(item.name) || "-"}</td>
-                  <td className="px-4 py-4">{formatNumber(item.initialPoints)}</td>
-                  <td className="px-4 py-4">{formatNumber(item.totalTasks)}</td>
-                  <td className="px-4 py-4 text-emerald-700">{formatNumber(item.completed)}</td>
-                  <td className="px-4 py-4 text-red-700">{formatNumber(item.incomplete)}</td>
-                  <td className="px-4 py-4">{formatNumber(item.rejected)}</td>
-                  <td className="px-4 py-4">{formatNumber(item.pending)}</td>
-                  <td className="px-4 py-4">{formatNumber(item.submitted)}</td>
-                  <td className="px-4 py-4 text-emerald-700">{formatNumber(item.earned)}</td>
-                  <td className="px-4 py-4 text-red-700">{formatNumber(item.deducted)}</td>
-                  <td className="px-4 py-4 text-lg font-extrabold text-blue-950">{formatNumber(item.score)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {items.length === 0 ? <p className="py-10 text-center text-sm text-slate-500">Chưa có dữ liệu báo cáo.</p> : null}
-        </div>
       </section>
+
+      {loading ? (
+        <PointSkeleton />
+      ) : notice.kind === "error" ? (
+        <section className="rounded-[20px] border border-red-200 bg-red-50 p-6 text-center">
+          <AlertCircle className="mx-auto h-10 w-10 text-red-700" />
+          <p className="mt-3 text-base font-bold text-red-800">Không tải được dữ liệu báo cáo</p>
+          <p className="mt-1 text-sm text-red-700">{notice.message}</p>
+          <button className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-red-700 px-4 py-3 text-sm font-bold text-white" onClick={loadReport} type="button">
+            <RefreshCw className="h-4 w-4" />
+            Thử lại
+          </button>
+        </section>
+      ) : rows.length === 0 ? (
+        <section className="rounded-[20px] border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <BarChart3 className="mx-auto h-10 w-10 text-slate-400" />
+          <p className="mt-3 text-base font-bold text-blue-950">Chưa có dữ liệu phù hợp</p>
+          <p className="mt-1 text-sm text-slate-500">Thử đổi tháng, năm hoặc xóa bộ lọc để xem thêm dữ liệu.</p>
+          <button className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700" onClick={resetFilters} type="button">
+            <FilterX className="h-4 w-4" />
+            Xóa bộ lọc
+          </button>
+        </section>
+      ) : (
+        <>
+          <section className="grid gap-3 min-[380px]:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+            {metricCards.map((metric) => {
+              const Icon = metric.icon;
+
+              return (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" key={metric.label} title={metric.title}>
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 ${metric.className}`}>
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-slate-600">{metric.label}</p>
+                  <p className={`mt-2 text-2xl font-extrabold ${metric.className}`}>{metric.value}</p>
+                </div>
+              );
+            })}
+          </section>
+
+          <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold text-blue-950">Tổng hợp theo từng nhân viên</h2>
+                <p className="mt-1 text-sm text-slate-500">Có thể cuộn ngang bảng trên tablet khi cần.</p>
+              </div>
+              <p className="text-sm font-semibold text-slate-500">Trang {currentPage}/{pageCount}</p>
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[1120px] text-left text-sm">
+                <thead className="sticky top-0 bg-blue-950 text-white">
+                  <tr>
+                    {[
+                      ["STT", null],
+                      ["Trưởng khu phố", "name"],
+                      ["Tổng công việc", "totalTasks"],
+                      ["Hoàn thành", "completed"],
+                      ["Chờ duyệt", null],
+                      ["Trễ hạn", null],
+                      ["Điểm cộng", null],
+                      ["Điểm trừ", null],
+                      ["Điểm thực tế", "score"],
+                      ["Tiến độ", null],
+                      ["Thao tác", null],
+                    ].map(([label, key], index, arr) => (
+                      <th className={`whitespace-nowrap px-4 py-3 ${index === 0 ? "rounded-l-lg" : ""} ${index === arr.length - 1 ? "rounded-r-lg text-right" : ""}`} key={label}>
+                        {key ? (
+                          <button className="inline-flex items-center gap-1 font-bold" onClick={() => toggleSort(key as PointSortKey)} type="button">
+                            {label}
+                            <span aria-hidden="true">{sortKey === key ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</span>
+                          </button>
+                        ) : label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedRows.map((row, index) => (
+                    <tr className="cursor-pointer border-b border-slate-100 align-middle transition hover:bg-blue-50/50" key={row.id} onClick={() => setSelectedId(row.id)} tabIndex={0}>
+                      <td className="px-4 py-4 text-slate-500">{(currentPage - 1) * pageSize + index + 1}</td>
+                      <td className="sticky left-0 bg-white px-4 py-4 font-bold text-blue-950">{row.name}</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right font-bold">{formatNumber(row.totalTasks)}</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right text-emerald-700">{formatNumber(row.completed)}</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right text-amber-700">{formatNumber(row.submitted)}</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right text-red-700">{formatNumber(row.overdue)}</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right text-emerald-700">{formatSigned(row.earned, "plus")}</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right text-red-700">{formatSigned(row.deducted, "minus")}</td>
+                      <td className="whitespace-nowrap px-4 py-4 text-right"><ScoreText value={row.score} /></td>
+                      <td className="px-4 py-4"><ProgressBar completed={row.completed} total={row.totalTasks} /></td>
+                      <td className="px-4 py-4 text-right">
+                        <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50" onClick={(event) => { event.stopPropagation(); setSelectedId(row.id); }} type="button">
+                          <Eye className="h-4 w-4" />
+                          Xem chi tiết
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 md:hidden">
+              {pagedRows.map((row) => (
+                <button className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm" key={row.id} onClick={() => setSelectedId(row.id)} type="button">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-base font-extrabold text-blue-950">{row.name}</p>
+                      <p className="mt-1 text-sm text-slate-500">Tổng việc: {formatNumber(row.totalTasks)}</p>
+                    </div>
+                    <ScoreText value={row.score} />
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                    <span className="rounded-lg bg-emerald-50 px-3 py-2 font-bold text-emerald-700">HT {row.completed}</span>
+                    <span className="rounded-lg bg-amber-50 px-3 py-2 font-bold text-amber-700">Chờ {row.submitted}</span>
+                    <span className="rounded-lg bg-red-50 px-3 py-2 font-bold text-red-700">Trễ {row.overdue}</span>
+                  </div>
+                  <div className="mt-4"><ProgressBar completed={row.completed} total={row.totalTasks} /></div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-sm font-bold">
+                    <span className="text-emerald-700">{formatSigned(row.earned, "plus")}</span>
+                    <span className="text-red-700">{formatSigned(row.deducted, "minus")}</span>
+                    <span className={row.score < 0 ? "text-red-700" : "text-blue-900"}>{formatSigned(row.score)}</span>
+                  </div>
+                  <span className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700">
+                    <Eye className="h-4 w-4" />
+                    Xem chi tiết
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold disabled:opacity-50" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">Trang trước</button>
+              <button className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold disabled:opacity-50" disabled={currentPage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} type="button">Trang sau</button>
+            </div>
+          </section>
+
+          {selectedRow ? (
+            <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="text-lg font-extrabold text-blue-950">Chi tiết công việc: {selectedRow.name}</h2>
+                  <p className="mt-1 text-sm text-slate-500">Điểm thực tế mỗi việc = điểm cộng - điểm trừ.</p>
+                </div>
+                <ProgressBar completed={selectedRow.completed} total={selectedRow.totalTasks} />
+              </div>
+              {selectedRow.tasks.length === 0 ? (
+                <p className="mt-5 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">Chưa có danh sách công việc chi tiết từ API hiện tại.</p>
+              ) : (
+                <>
+                  <div className="mt-5 hidden overflow-x-auto lg:block">
+                    <table className="w-full min-w-[1280px] text-left text-sm">
+                      <thead className="bg-slate-100 text-slate-700">
+                        <tr>
+                          {["Tên công việc", "Trọng số", "Trạng thái", "Deadline", "Thời gian nộp", "Thời gian đánh giá", "Thời hạn", "Điểm cộng", "Điểm trừ", "Điểm thực tế", "Ghi chú"].map((label) => (
+                            <th className="whitespace-nowrap px-4 py-3" key={label}>{label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedRow.tasks.map((task) => {
+                          const score = calculateTaskScore(task);
+
+                          return (
+                            <tr className="border-b border-slate-100 align-top" key={getId(task.id)}>
+                              <td className="px-4 py-4">
+                                <p className="font-bold text-blue-950">{getText(task.title) || "—"}</p>
+                                <p className="mt-1 line-clamp-2 text-slate-500">{getText(task.content) || "—"}</p>
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-4 text-right font-bold">{formatNumber(task.points)}</td>
+                              <td className="px-4 py-4"><StatusBadge status={task.status} /></td>
+                              <td className="whitespace-nowrap px-4 py-4">{formatDate(task.deadline)}</td>
+                              <td className="whitespace-nowrap px-4 py-4">{formatDate(score.submittedAt)}</td>
+                              <td className="whitespace-nowrap px-4 py-4">{formatDate(score.evaluatedAt)}</td>
+                              <td className="px-4 py-4">
+                                <DeadlineBadge score={score} />
+                                {score.latenessText ? <p className="mt-1 text-xs font-semibold text-red-700">Trễ {score.latenessText}</p> : null}
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-4 text-right text-emerald-700">{formatSigned(score.earned, "plus")}</td>
+                              <td className="whitespace-nowrap px-4 py-4 text-right text-red-700">{formatSigned(score.deducted, "minus")}</td>
+                              <td className="whitespace-nowrap px-4 py-4 text-right"><ScoreText value={score.net} /></td>
+                              <td className="px-4 py-4">{getText(task.note) || getText(task.reason) || getText(task.rejectionReason) || "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-5 space-y-3 lg:hidden">
+                    {selectedRow.tasks.map((task) => {
+                      const score = calculateTaskScore(task);
+
+                      return (
+                        <details className="rounded-xl border border-slate-200 p-4" key={getId(task.id)}>
+                          <summary className="cursor-pointer list-none">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-base font-extrabold text-blue-950">{getText(task.title) || "—"}</p>
+                                <p className="mt-2 text-sm text-slate-600">Deadline: {formatDate(task.deadline)}</p>
+                              </div>
+                              <ScoreText value={score.net} />
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <StatusBadge status={task.status} />
+                              <DeadlineBadge score={score} />
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">Trọng số {formatNumber(task.points)}</span>
+                            </div>
+                          </summary>
+                          <div className="mt-4 space-y-2 text-sm text-slate-700">
+                            <p>Nội dung: {getText(task.content) || "—"}</p>
+                            <p>Thời gian nộp: {formatDate(score.submittedAt)}</p>
+                            <p>Thời gian đánh giá: {formatDate(score.evaluatedAt)}</p>
+                            <p>Trễ: {score.latenessText || "—"}</p>
+                            <p>Điểm cộng: <span className="font-bold text-emerald-700">{formatSigned(score.earned, "plus")}</span></p>
+                            <p>Điểm trừ: <span className="font-bold text-red-700">{formatSigned(score.deducted, "minus")}</span></p>
+                            <p>Ghi chú: {getText(task.note) || getText(task.reason) || getText(task.rejectionReason) || "—"}</p>
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </section>
+          ) : null}
+        </>
+      )}
     </PageFrame>
   );
 }
