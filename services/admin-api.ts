@@ -167,6 +167,16 @@ export function normalizeSingle(value: unknown): AdminRecord {
   return {};
 }
 
+export async function getAdminOptions(path: string): Promise<AdminRecord> {
+  const body = await adminRequest<unknown>(path, {
+    method: "GET",
+    headers: await getHeaders(),
+    cache: "no-store",
+  });
+
+  return normalizeSingle(body);
+}
+
 export async function listAdminResource(
   resource: string,
   query?: ListQuery,

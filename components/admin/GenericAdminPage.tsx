@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   Download,
@@ -20,6 +20,7 @@ import {
   deleteAdminResource,
   downloadBlob,
   getAdminResource,
+  getAdminOptions,
   listAdminResource,
   updateAdminResource,
   uploadAttachment,
@@ -38,10 +39,24 @@ export type GenericField = {
     | "date"
     | "time"
     | "checkbox"
+    | "checkbox-group"
+    | "guest-list"
+    | "multiselect"
     | "json";
   placeholder?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;
+  optionSource?: string;
+  optionValueKey?: string;
+  optionLabelKeys?: string[];
+  recordKey?: string;
+  recordValue?:
+    | "ids"
+    | "participant-ids"
+    | "not-none"
+    | "none-as-default";
+  defaultValue?: unknown;
+  sendEmptyAsNull?: boolean;
 };
 
 export type GenericAction = {
@@ -65,6 +80,7 @@ export type GenericAdminConfig = {
   allowEdit?: boolean;
   allowDelete?: boolean;
   allowUpload?: boolean;
+  formOptionsPath?: string;
   actions?: GenericAction[];
 };
 
@@ -150,6 +166,45 @@ function buildPayload(fields: GenericField[], formData: FormData) {
   const payload: AdminRecord = {};
 
   fields.forEach((field) => {
+    if (field.type === "guest-list") {
+      const guestRows = new Map<number, Record<string, string>>();
+      const fieldPattern = new RegExp(
+        `^${field.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.(\\d+)\\.(name|unit|email|phone)$`,
+      );
+
+      for (const [key, entryValue] of formData.entries()) {
+        const match = key.match(fieldPattern);
+        if (!match || typeof entryValue !== "string") {
+          continue;
+        }
+
+        const index = Number(match[1]);
+        const property = match[2];
+        const guest = guestRows.get(index) ?? {};
+        guest[property] = entryValue.trim();
+        guestRows.set(index, guest);
+      }
+
+      payload[field.name] = [...guestRows.entries()]
+        .sort(([first], [second]) => first - second)
+        .map(([, guest]) =>
+          Object.fromEntries(
+            Object.entries(guest).filter(([, value]) => value.length > 0),
+          ),
+        )
+        .filter((guest) => typeof guest.name === "string" && guest.name);
+      return;
+    }
+
+    if (field.type === "multiselect" || field.type === "checkbox-group") {
+      payload[field.name] = formData
+        .getAll(field.name)
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      return;
+    }
+
     const rawValue = formData.get(field.name);
     const value = typeof rawValue === "string" ? rawValue.trim() : "";
 
@@ -159,6 +214,9 @@ function buildPayload(fields: GenericField[], formData: FormData) {
     }
 
     if (!value) {
+      if (field.sendEmptyAsNull) {
+        payload[field.name] = null;
+      }
       return;
     }
 
@@ -196,9 +254,11 @@ function buildPayload(fields: GenericField[], formData: FormData) {
 function FieldControl({
   defaultValue,
   field,
+  options,
 }: {
   defaultValue?: unknown;
   field: GenericField;
+  options: Array<{ label: string; value: string }>;
 }) {
   const className =
     "mt-2 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100";
@@ -247,12 +307,80 @@ function FieldControl({
         required={field.required}
       >
         <option value="">Chọn {field.label.toLowerCase()}</option>
-        {field.options?.map((option) => (
+        {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
       </select>
+    );
+  }
+
+  if (field.type === "multiselect") {
+    const selectedValues = Array.isArray(defaultValue)
+      ? defaultValue.map(String)
+      : [];
+
+    return (
+      <>
+        <select
+          className={`${className} min-h-40`}
+          defaultValue={selectedValues}
+          multiple
+          name={field.name}
+          required={field.required}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span className="mt-2 block text-xs text-slate-500">
+          Giữ Ctrl (Windows) hoặc Command (macOS) để chọn nhiều mục.
+        </span>
+      </>
+    );
+  }
+
+  if (field.type === "checkbox-group") {
+    const selectedValues = new Set(
+      Array.isArray(defaultValue) ? defaultValue.map(String) : [],
+    );
+
+    return (
+      <div className="mt-2 grid max-h-64 gap-2 overflow-y-auto rounded-xl border border-slate-300 bg-slate-50 p-3 sm:grid-cols-2">
+        {options.length > 0 ? (
+          options.map((option) => (
+            <label
+              className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-800 transition hover:bg-blue-50"
+              key={option.value}
+            >
+              <input
+                className="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-700"
+                defaultChecked={selectedValues.has(option.value)}
+                name={field.name}
+                type="checkbox"
+                value={option.value}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))
+        ) : (
+          <span className="px-3 py-2 text-sm text-slate-500">
+            Chưa có dữ liệu phòng ban.
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (field.type === "guest-list") {
+    return (
+      <GuestListControl
+        defaultValue={defaultValue}
+        fieldName={field.name}
+      />
     );
   }
 
@@ -274,8 +402,154 @@ function FieldControl({
   );
 }
 
+type GuestFormValue = {
+  id: string;
+  name: string;
+  unit: string;
+  email: string;
+  phone: string;
+};
+
+function toGuestFormValues(value: unknown): GuestFormValue[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((guest, index) => {
+    if (!isRecord(guest)) {
+      return [];
+    }
+
+    return [
+      {
+        id:
+          typeof guest.id === "string" && guest.id
+            ? guest.id
+            : `existing-${index}`,
+        name: typeof guest.name === "string" ? guest.name : "",
+        unit: typeof guest.unit === "string" ? guest.unit : "",
+        email: typeof guest.email === "string" ? guest.email : "",
+        phone: typeof guest.phone === "string" ? guest.phone : "",
+      },
+    ];
+  });
+}
+
+function GuestListControl({
+  defaultValue,
+  fieldName,
+}: {
+  defaultValue?: unknown;
+  fieldName: string;
+}) {
+  const nextId = useRef(0);
+  const [guests, setGuests] = useState<GuestFormValue[]>(() =>
+    toGuestFormValues(defaultValue),
+  );
+  const inputClassName =
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-700 focus:ring-4 focus:ring-blue-100";
+
+  function addGuest() {
+    const id = `new-${nextId.current}`;
+    nextId.current += 1;
+    setGuests((current) => [
+      ...current,
+      { id, name: "", unit: "", email: "", phone: "" },
+    ]);
+  }
+
+  function removeGuest(id: string) {
+    setGuests((current) => current.filter((guest) => guest.id !== id));
+  }
+
+  return (
+    <div className="mt-2 space-y-3">
+      {guests.map((guest, index) => (
+        <section
+          className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+          key={guest.id}
+        >
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-bold text-blue-950">
+              Khách mời {index + 1}
+            </p>
+            <button
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
+              onClick={() => removeGuest(guest.id)}
+              title="Xóa khách mời"
+              type="button"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <label>
+              <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                Họ và tên <span className="text-red-600">*</span>
+              </span>
+              <input
+                className={inputClassName}
+                defaultValue={guest.name}
+                name={`${fieldName}.${index}.name`}
+                placeholder="Nguyễn Văn A"
+                required
+              />
+            </label>
+            <label>
+              <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                Đơn vị
+              </span>
+              <input
+                className={inputClassName}
+                defaultValue={guest.unit}
+                name={`${fieldName}.${index}.unit`}
+                placeholder="UBND"
+              />
+            </label>
+            <label>
+              <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                Email
+              </span>
+              <input
+                className={inputClassName}
+                defaultValue={guest.email}
+                name={`${fieldName}.${index}.email`}
+                placeholder="email@example.com"
+                type="email"
+              />
+            </label>
+            <label>
+              <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                Điện thoại
+              </span>
+              <input
+                className={inputClassName}
+                defaultValue={guest.phone}
+                name={`${fieldName}.${index}.phone`}
+                placeholder="090..."
+                type="tel"
+              />
+            </label>
+          </div>
+        </section>
+      ))}
+
+      <button
+        className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-800 transition hover:bg-blue-100"
+        onClick={addGuest}
+        type="button"
+      >
+        <Plus className="h-4 w-4" />
+        Thêm người
+      </button>
+    </div>
+  );
+}
+
 function ResourceForm({
   fields,
+  formOptions,
   isSaving,
   onCancel,
   onSubmit,
@@ -283,6 +557,7 @@ function ResourceForm({
   title,
 }: {
   fields: GenericField[];
+  formOptions: AdminRecord;
   isSaving: boolean;
   onCancel?: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -302,14 +577,24 @@ function ResourceForm({
 
       {fields.map((field) => (
         <label
-          className={field.type === "textarea" || field.type === "json" ? "lg:col-span-2" : ""}
+          className={
+            field.type === "textarea" ||
+            field.type === "json" ||
+            field.type === "guest-list"
+              ? "lg:col-span-2"
+              : ""
+          }
           key={field.name}
         >
           <span className="text-sm font-bold text-slate-700">
             {field.label}
             {field.required ? <span className="text-red-600"> *</span> : null}
           </span>
-          <FieldControl defaultValue={record?.[field.name]} field={field} />
+          <FieldControl
+            defaultValue={getFieldValue(record, field)}
+            field={field}
+            options={getFieldOptions(formOptions, field)}
+          />
         </label>
       ))}
 
@@ -338,6 +623,91 @@ function ResourceForm({
   );
 }
 
+function getFieldValue(
+  record: AdminRecord | null | undefined,
+  field: GenericField,
+) {
+  const value = record
+    ? readValue(record, field.recordKey ?? field.name)
+    : undefined;
+  const fallbackValue =
+    value === undefined && record ? readValue(record, field.name) : value;
+
+  if (field.recordValue === "ids" && Array.isArray(fallbackValue)) {
+    return fallbackValue
+      .map((item) => (isRecord(item) ? item.id : item))
+      .filter(
+        (item): item is string | number =>
+          typeof item === "string" || typeof item === "number",
+      );
+  }
+
+  if (field.recordValue === "participant-ids" && Array.isArray(fallbackValue)) {
+    return fallbackValue
+      .filter(
+        (item) =>
+          isRecord(item) &&
+          item.role === "PARTICIPANT" &&
+          (typeof item.id === "string" || typeof item.id === "number"),
+      )
+      .map((item) => (item as AdminRecord).id as string | number);
+  }
+
+  if (field.recordValue === "not-none") {
+    return fallbackValue !== undefined
+      ? fallbackValue !== "NONE"
+      : field.defaultValue;
+  }
+
+  if (field.recordValue === "none-as-default" && fallbackValue === "NONE") {
+    return field.defaultValue;
+  }
+
+  return fallbackValue ?? field.defaultValue;
+}
+
+function isRecord(value: unknown): value is AdminRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getFieldOptions(formOptions: AdminRecord, field: GenericField) {
+  if (!field.optionSource) {
+    return field.options ?? [];
+  }
+
+  const source = readValue(formOptions, field.optionSource);
+  if (!Array.isArray(source)) {
+    return field.options ?? [];
+  }
+
+  const valueKey = field.optionValueKey ?? "id";
+  const labelKeys = field.optionLabelKeys ?? ["name"];
+
+  return source.flatMap((item) => {
+    if (!isRecord(item)) {
+      return [];
+    }
+
+    const rawValue = readValue(item, valueKey);
+    const rawLabel = labelKeys
+      .map((key) => readValue(item, key))
+      .find(
+        (value) =>
+          (typeof value === "string" && value.trim()) ||
+          typeof value === "number",
+      );
+
+    if (
+      (typeof rawValue !== "string" && typeof rawValue !== "number") ||
+      (typeof rawLabel !== "string" && typeof rawLabel !== "number")
+    ) {
+      return [];
+    }
+
+    return [{ value: String(rawValue), label: String(rawLabel) }];
+  });
+}
+
 export default function GenericAdminPage({ config }: { config: GenericAdminConfig }) {
   const fields = config.fields ?? [];
   const [items, setItems] = useState<AdminRecord[]>([]);
@@ -347,6 +717,7 @@ export default function GenericAdminPage({ config }: { config: GenericAdminConfi
   const [detailRecord, setDetailRecord] = useState<AdminRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [formOptions, setFormOptions] = useState<AdminRecord>({});
   const [notice, setNotice] = useState<Notice>({
     kind: "info",
     message: "Đang tải dữ liệu từ backend...",
@@ -395,6 +766,30 @@ export default function GenericAdminPage({ config }: { config: GenericAdminConfi
 
     return () => window.clearTimeout(timer);
   }, [debouncedQuery, loadItems]);
+
+  useEffect(() => {
+    if (!config.formOptionsPath) {
+      return;
+    }
+
+    let isActive = true;
+
+    void getAdminOptions(config.formOptionsPath)
+      .then((data) => {
+        if (isActive) {
+          setFormOptions(data);
+        }
+      })
+      .catch((error) => {
+        if (isActive) {
+          setNotice({ kind: "error", message: getErrorMessage(error) });
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [config.formOptionsPath]);
 
   const noticeClassName = {
     success: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -463,6 +858,21 @@ export default function GenericAdminPage({ config }: { config: GenericAdminConfi
       setDetailRecord(await getAdminResource(config.resource, id));
     } catch {
       setDetailRecord(record);
+    }
+  }
+
+  async function beginEdit(record: AdminRecord) {
+    const id = getRecordId(record);
+
+    if (id === undefined) {
+      setEditingRecord(record);
+      return;
+    }
+
+    try {
+      setEditingRecord(await getAdminResource(config.resource, id));
+    } catch {
+      setEditingRecord(record);
     }
   }
 
@@ -629,6 +1039,7 @@ export default function GenericAdminPage({ config }: { config: GenericAdminConfi
       {allowCreate && !editingRecord ? (
         <ResourceForm
           fields={fields}
+          formOptions={formOptions}
           isSaving={isSaving}
           onSubmit={submitCreate}
           title={config.createTitle ?? "Tạo bản ghi"}
@@ -638,6 +1049,7 @@ export default function GenericAdminPage({ config }: { config: GenericAdminConfi
       {editingRecord ? (
         <ResourceForm
           fields={fields}
+          formOptions={formOptions}
           isSaving={isSaving}
           onCancel={() => setEditingRecord(null)}
           onSubmit={submitUpdate}
@@ -741,7 +1153,7 @@ export default function GenericAdminPage({ config }: { config: GenericAdminConfi
                             {allowEdit ? (
                               <button
                                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
-                                onClick={() => setEditingRecord(record)}
+                                onClick={() => void beginEdit(record)}
                                 title="Sửa"
                                 type="button"
                               >
