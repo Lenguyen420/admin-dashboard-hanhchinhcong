@@ -15,6 +15,7 @@ import {
 } from "@/services/remote-queue";
 import type { User } from "@/services/users";
 import type { LucideIcon } from "lucide-react";
+import { appointmentsApi } from "@/services/appointments";
 
 const statusMeta: Record<TicketStatus, { label: string; className: string }> = {
   WAITING: { label: "Đang chờ", className: "bg-amber-100 text-amber-800" },
@@ -214,6 +215,7 @@ export default function RemoteQueuePage() {
   const [deskDialog, setDeskDialog] = useState<Desk | null | "new">(null);
   const [assignDesk, setAssignDesk] = useState<Desk | null>(null);
   const [pendingTicket, setPendingTicket] = useState("");
+  const [callingNext, setCallingNext] = useState(false);
   const requestActive = useRef(false);
   const socketRef = useRef<Socket | null>(null);
 
@@ -284,7 +286,6 @@ export default function RemoteQueuePage() {
   }), [tickets.items]);
   const selectedDashboard = dashboard.find((item) => item.deskId === deskId);
   const serving = orderedTickets.find((item) => item.status === "SERVING" && (!deskId || item.deskId === deskId));
-  const waiting = orderedTickets.find((item) => item.status === "WAITING" && (!deskId || item.deskId === deskId));
   const totals = dashboard.reduce((sum, item) => ({
     waiting: sum.waiting + item.waiting, serving: sum.serving + item.serving,
     completed: sum.completed + item.completed, cancelled: sum.cancelled + item.cancelled,
@@ -301,6 +302,24 @@ export default function RemoteQueuePage() {
     try { await remoteQueueApi.updateStatus(ticket.id, next); notify(`${label} thành công.`); await load(true); }
     catch (e) { notify(e instanceof Error ? e.message : "Không thể cập nhật trạng thái.", true); }
     finally { setPendingTicket(""); }
+  }
+
+  async function callNext() {
+    if (!deskId || callingNext) return;
+    setCallingNext(true);
+    try {
+      const result = await appointmentsApi.callNext(deskId);
+      if (!result) notify("Không còn lượt chờ tại quầy.");
+      else if (result.serviceType === "APPOINTMENT") {
+        const item = result.item as { code?: string; contactName?: string };
+        notify(`Đã gọi lịch hẹn ${item.code || ""}${item.contactName ? ` · ${item.contactName}` : ""}.`);
+      } else {
+        const item = result.item as { number?: string };
+        notify(`Đã gọi số trực tuyến ${item.number || ""}.`);
+      }
+      await load(true);
+    } catch (e) { notify(e instanceof Error ? e.message : "Không thể gọi lượt tiếp theo.", true); }
+    finally { setCallingNext(false); }
   }
 
   const actions = (ticket: Ticket) => {
@@ -359,7 +378,7 @@ export default function RemoteQueuePage() {
         })}</div>}
       </section>
 
-      {deskId && <section className="rounded-2xl bg-slate-950 p-5 text-white shadow-lg sm:p-6"><p className="text-sm font-bold text-slate-300">{selectedDashboard?.deskName} · {selectedDashboard?.deskCode}</p>{serving ? <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end"><div><p className="text-sm text-slate-300">Số đang phục vụ</p><strong className="block text-6xl font-black text-yellow-300">{serving.number}</strong><p className="mt-3 text-sm">Bắt đầu: {formatTime(serving.servedAt)} · Đã phục vụ: {elapsed(serving.servedAt)}</p></div>{actions(serving)}</div> : <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center"><div><p className="font-bold">Chưa có người đang phục vụ</p><p className="text-sm text-slate-400">{waiting ? `Lượt tiếp theo: ${waiting.number}` : "Quầy chưa có lượt đang chờ."}</p></div>{waiting && <button className="action min-h-11 bg-blue-600 text-white" onClick={() => changeStatus(waiting, "SERVING")}><Play /> Gọi số tiếp theo</button>}</div>}</section>}
+      {deskId && <section className="rounded-2xl bg-slate-950 p-5 text-white shadow-lg sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-bold text-slate-300">{selectedDashboard?.deskName} · {selectedDashboard?.deskCode}</p><button className="action min-h-11 bg-yellow-400 text-slate-950 disabled:opacity-60" disabled={callingNext || !!serving} onClick={callNext}><Play />{callingNext ? "Đang gọi…" : "Gọi lượt tiếp theo"}</button></div>{serving ? <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end"><div><p className="text-sm text-slate-300">Số trực tuyến đang phục vụ</p><strong className="block text-6xl font-black text-yellow-300">{serving.number}</strong><p className="mt-3 text-sm">Bắt đầu: {formatTime(serving.servedAt)} · Đã phục vụ: {elapsed(serving.servedAt)}</p></div>{actions(serving)}</div> : <div className="mt-4"><p className="font-bold">Chưa có người đang phục vụ</p><p className="text-sm text-slate-400">Backend sẽ ưu tiên lịch hẹn đã check-in trước số trực tuyến đang chờ.</p></div>}</section>}
 
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="grid gap-3 border-b p-4 sm:grid-cols-3"><label className="text-sm font-semibold">Quầy<select className="mt-1 min-h-11 w-full rounded-xl border px-3 font-normal" onChange={(e) => { setDeskId(e.target.value); setPage(0); }} value={deskId}><option value="">Tất cả quầy</option>{dashboard.map((d) => <option key={d.deskId} value={d.deskId}>{d.deskName} ({d.deskCode})</option>)}</select></label><label className="text-sm font-semibold">Trạng thái<select className="mt-1 min-h-11 w-full rounded-xl border px-3 font-normal" onChange={(e) => { setStatus(e.target.value as TicketStatus | ""); setPage(0); }} value={status}><option value="">Tất cả trạng thái</option>{Object.entries(statusMeta).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}</select></label><div className="self-end text-sm text-slate-500">Tìm thấy {tickets.total} lượt</div></div>

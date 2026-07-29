@@ -39,6 +39,16 @@ const navItems: Array<{
     permission: "REMOTE_QUEUE_MANAGE",
   },
   {
+    label: "Hẹn làm việc",
+    href: "/admin/appointments",
+    permission: "REMOTE_QUEUE_MANAGE",
+  },
+  {
+    label: "Đánh giá tại quầy",
+    href: "/admin/appointment-ratings",
+    roles: ["ADMIN"],
+  },
+  {
     label: "Tổng quan",
     href: "/",
   },
@@ -577,7 +587,8 @@ export default function AppShell({
   useEffect(() => {
     if (!user) return;
     const remoteStaff = role !== "ADMIN" && permissions.includes("REMOTE_QUEUE_MANAGE");
-    if (remoteStaff && activeHref !== "/admin/remote-queue") {
+    const staffRoutes = ["/admin/remote-queue", "/admin/appointments"];
+    if (remoteStaff && !staffRoutes.includes(activeHref || "")) {
       router.replace("/admin/remote-queue");
     }
   }, [activeHref, permissions, role, router, user]);
