@@ -14,7 +14,11 @@ import {
 } from "lucide-react";
 
 import { rememberAccessTokenExpiry } from "@/components/auth/AuthRefreshScheduler";
-import { adminLogin, isApiError, rememberAdminAuth } from "@/services/auth.service";
+import {
+  adminLogin,
+  isApiError,
+  rememberAdminAuth,
+} from "@/services/auth.service";
 import { canManageRemoteQueue } from "@/components/auth/RemoteQueueGuard";
 
 const DASHBOARD_PATH = "/";
@@ -64,8 +68,14 @@ export default function LoginForm() {
       rememberAccessTokenExpiry(data.expiresIn);
 
       const loggedInUser = data.user ?? data.admin ?? null;
-      const role = String(loggedInUser?.systemRole ?? loggedInUser?.role ?? "USER").toUpperCase();
-      window.location.assign(role !== "ADMIN" && canManageRemoteQueue(loggedInUser) ? "/admin/remote-queue" : DASHBOARD_PATH);
+      const role = String(
+        loggedInUser?.systemRole ?? loggedInUser?.role ?? "USER",
+      ).toUpperCase();
+      window.location.assign(
+        role !== "ADMIN" && canManageRemoteQueue(loggedInUser)
+          ? "/admin/remote-queue"
+          : DASHBOARD_PATH,
+      );
     } catch (requestError) {
       const message =
         requestError instanceof Error
@@ -89,7 +99,7 @@ export default function LoginForm() {
           <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(185,28,28,0.98),rgba(127,29,29,0.96)_52%,rgba(15,23,42,0.88))]" />
           <div className="absolute inset-x-0 bottom-0 h-28 bg-[linear-gradient(0deg,rgba(0,0,0,0.24),transparent)]" />
 
-          <div className="relative z-10 flex items-center gap-3">
+          {/*           <div className="relative z-10 flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-yellow-300/60 bg-[#da251d] shadow-sm">
               <span className="text-2xl leading-none text-[#ffff00]">★</span>
             </div>
@@ -102,7 +112,7 @@ export default function LoginForm() {
                 Phường Gò Dầu - Tỉnh Tây Ninh
               </p>
             </div>
-          </div>
+          </div> */}
 
           <div className="relative z-10 max-w-2xl py-10 lg:py-0">
             <div className="mb-7 inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/10 px-3 py-2 text-sm font-medium text-yellow-50 backdrop-blur">

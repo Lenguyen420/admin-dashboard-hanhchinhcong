@@ -143,9 +143,15 @@ const navItems: Array<{
   },
 ];
 
-function canSeeItem(role: string, permissions: string[], itemRoles?: string[], permission?: string) {
+function canSeeItem(
+  role: string,
+  permissions: string[],
+  itemRoles?: string[],
+  permission?: string,
+) {
   if (permission) return role === "ADMIN" || permissions.includes(permission);
-  if (role !== "ADMIN" && permissions.includes("REMOTE_QUEUE_MANAGE")) return false;
+  if (role !== "ADMIN" && permissions.includes("REMOTE_QUEUE_MANAGE"))
+    return false;
   if (!itemRoles) return role !== "USER";
   if (role === "ADMIN" && itemRoles.includes("ADMIN")) return true;
 
@@ -220,7 +226,7 @@ function Logo() {
       >
         <div className="absolute left-0 top-0 h-full w-1.5 bg-[#ffd21f]" />
 
-        <div className="pl-2 leading-tight">
+        {/*         <div className="pl-2 leading-tight">
           <p
             className="
               truncate text-[12px] font-bold uppercase tracking-wide
@@ -238,7 +244,7 @@ function Logo() {
           >
             Phường Gò Dầu - Tỉnh Tây Ninh
           </p>
-        </div>
+        </div> */}
       </div>
     </Link>
   );
@@ -346,7 +352,13 @@ function Header({ role, user }: { role: string; user: AdminUser | null }) {
     }
 
     let disconnected = false;
-    let socket: { disconnect: () => void; on: (event: string, callback: (payload: TaskNotification) => void) => void } | null = null;
+    let socket: {
+      disconnect: () => void;
+      on: (
+        event: string,
+        callback: (payload: TaskNotification) => void,
+      ) => void;
+    } | null = null;
 
     import("socket.io-client")
       .then(({ io }) => {
@@ -366,7 +378,10 @@ function Header({ role, user }: { role: string; user: AdminUser | null }) {
           if (typeof window !== "undefined") {
             window.dispatchEvent(
               new CustomEvent("admin-toast", {
-                detail: notification.title ?? notification.message ?? "Có thông báo mới",
+                detail:
+                  notification.title ??
+                  notification.message ??
+                  "Có thông báo mới",
               }),
             );
           }
@@ -380,7 +395,9 @@ function Header({ role, user }: { role: string; user: AdminUser | null }) {
     };
   }, [role]);
 
-  const unreadCount = notifications.filter((item) => !item.readAt && !item.isRead).length;
+  const unreadCount = notifications.filter(
+    (item) => !item.readAt && !item.isRead,
+  ).length;
 
   async function handleRead(notification: TaskNotification) {
     const id = String(notification.id ?? "");
@@ -391,7 +408,9 @@ function Header({ role, user }: { role: string; user: AdminUser | null }) {
       await markTaskNotificationRead(id);
       setNotifications((current) =>
         current.map((item) =>
-          String(item.id ?? "") === id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item,
+          String(item.id ?? "") === id
+            ? { ...item, isRead: true, readAt: new Date().toISOString() }
+            : item,
         ),
       );
     } catch {
@@ -467,10 +486,18 @@ function Header({ role, user }: { role: string; user: AdminUser | null }) {
                           type="button"
                         >
                           <span className="block text-sm font-bold text-blue-950">
-                            {String(notification.title ?? notification.type ?? "Thông báo")}
+                            {String(
+                              notification.title ??
+                                notification.type ??
+                                "Thông báo",
+                            )}
                           </span>
                           <span className="mt-1 line-clamp-2 block text-xs leading-5 text-slate-600">
-                            {String(notification.message ?? notification.content ?? "")}
+                            {String(
+                              notification.message ??
+                                notification.content ??
+                                "",
+                            )}
                           </span>
                         </button>
                       ))
@@ -502,7 +529,10 @@ function Header({ role, user }: { role: string; user: AdminUser | null }) {
 
             <div className="leading-tight">
               <p className="text-sm font-semibold text-white">
-                {user?.name || user?.username || ROLE_LABELS[role] || "Người dùng"}
+                {user?.name ||
+                  user?.username ||
+                  ROLE_LABELS[role] ||
+                  "Người dùng"}
               </p>
               <p className="text-xs text-yellow-100/90">
                 {ROLE_LABELS[role] ?? role}
@@ -517,8 +547,18 @@ function Header({ role, user }: { role: string; user: AdminUser | null }) {
   );
 }
 
-function NavBar({ activeHref, role, permissions }: { activeHref: string; role: string; permissions: string[] }) {
-  const visibleItems = navItems.filter((item) => canSeeItem(role, permissions, item.roles, item.permission));
+function NavBar({
+  activeHref,
+  role,
+  permissions,
+}: {
+  activeHref: string;
+  role: string;
+  permissions: string[];
+}) {
+  const visibleItems = navItems.filter((item) =>
+    canSeeItem(role, permissions, item.roles, item.permission),
+  );
 
   return (
     <nav
@@ -586,7 +626,8 @@ export default function AppShell({
 
   useEffect(() => {
     if (!user) return;
-    const remoteStaff = role !== "ADMIN" && permissions.includes("REMOTE_QUEUE_MANAGE");
+    const remoteStaff =
+      role !== "ADMIN" && permissions.includes("REMOTE_QUEUE_MANAGE");
     const staffRoutes = ["/admin/remote-queue", "/admin/appointments"];
     if (remoteStaff && !staffRoutes.includes(activeHref || "")) {
       router.replace("/admin/remote-queue");
